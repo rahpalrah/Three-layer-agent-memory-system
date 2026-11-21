@@ -20,6 +20,8 @@ class Fact:
     key: Optional[str] = None
     source_ids: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
+    slot: Optional[str] = None     # e.g. "pref:coffee" - what the fact is about
+    update: bool = False           # the speaker signalled a change ("now", "anymore", ...)
 
 
 class FactExtractor(Protocol):
@@ -41,6 +43,20 @@ _RULES = [
     (r"\bmy favou?rite ([a-z ]{2,20}) is ([\w ,'-]{2,40}?)(?:[.!?]|$)", "The user's favourite {0} is {1}.", "user.favourite.{0}"),
     (r"\b(?:remember|don't forget|note) that ([^.!?]{4,200})", "{0}.", None),
 ]
+
+
+_UPDATE = re.compile(r"\b(now|anymore|any more|instead|changed my mind|no longer|from now on|these days|switched)\b", re.I)
+_PREPS = re.compile(r"\s+(?:for|with|in|on|at|to|from|of|because|but|and|so|when)\b.*$", re.I)
+_FILLER_TAIL = re.compile(r"\b(?:now|anymore|any more|instead|these days|a lot|very much|too)\s*$", re.I)
+_PREF_TEMPLATES = ("The user likes", "The user prefers", "The user dislikes")
+
+
+def preference_slot(obj: str) -> Optional[str]:
+    """Head noun of a preference object: 'dark roast coffee' -> 'coffee', 'whole beans for x' -> 'beans'."""
+    o = _PREPS.sub("", obj.strip())
+    o = _FILLER_TAIL.sub("", o).strip(" ,.")
+    words = re.findall(r"[^\W_]+", o.lower())
+    return f"pref:{words[-1]}" if words else None
 
 
 _PRONOUNS = [(r"\bi am\b|\bi'm\b", "the user is"), (r"\bmy\b", "the user's"),
@@ -74,8 +90,10 @@ class RuleBasedExtractor:
                         text = tmpl.format(*groups)
                         if tmpl == "{0}.":
                             text = third_person(text)
-                        facts.append(Fact(text, importance=max(0.6, ep.importance),
-                                          key=k, source_ids=[ep.id], tags=list(ep.tags)))
+                        slot = preference_slot(groups[0]) if tmpl.startswith(_PREF_TEMPLATES) else None
+                        facts.append(Fact(text, importance=max(0.6, ep.importance), key=k,
+                                          source_ids=[ep.id], tags=list(ep.tags), slot=slot,
+                                          update=bool(_UPDATE.search(ep.content))))
                         matched = True
             if not matched and ep.importance >= self.promote_threshold:
                 facts.append(Fact(ep.content, importance=ep.importance, source_ids=[ep.id], tags=list(ep.tags)))

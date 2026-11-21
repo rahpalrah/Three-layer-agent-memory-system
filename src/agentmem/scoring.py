@@ -88,6 +88,8 @@ class RetrievalWeights:
     importance_half_life_days: float = 30.0   # importance decays unless reinforced
     access_boost: float = 0.03                # per past retrieval, capped
     min_relevance: float = 0.0                # hard filter on raw cosine when a query is given
+    lexical: float = 0.5                      # hybrid search: share of relevance from BM25 keywords
+                                              # (0 = embeddings only, 1 = keywords only)
     relevance_gate: float = 0.75              # 0 = additive (Generative Agents); 1 = recency/importance
                                               # only count in proportion to relevance
 
@@ -109,37 +111,53 @@ def effective_importance(item: MemoryItem, now: float, w: RetrievalWeights) -> f
 
 def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
          weights: RetrievalWeights, now: Optional[float] = None,
-         layer_weights: Optional[Dict[object, RetrievalWeights]] = None):
+         layer_weights: Optional[Dict[object, RetrievalWeights]] = None,
+         query_text: Optional[str] = None):
     """Score items for a query.
 
     Relevance is min-max normalised across the candidate set (so the score
     scale doesn't depend on the embedder), and recency/importance are scaled by
     ``relevance_gate`` so an important-but-unrelated memory can't outrank a
     relevant one. With no query, ranking is by recency and importance only.
-    ``layer_weights`` lets each layer use its own decay settings.
+    ``layer_weights`` lets each layer use its own decay settings. When
+    ``query_text`` is given, relevance is a hybrid of embedding similarity and
+    BM25 keyword score (each normalised), weighted by ``weights.lexical``.
     """
     from .types import ScoredMemory
     now = now or time.time()
     items = list(items)
+    if query_vec is not None and not any(query_vec):
+        query_vec = None  # query had no content words (e.g. "who am I?"): rank by recency/importance
     raw = cosine_many(query_vec, [i.embedding for i in items]) if query_vec is not None else [0.0] * len(items)
     raw = [max(r, 0.0) for r in raw]
     hi = max(raw, default=0.0)
+    dense_n = [r / hi if hi > 0 else 0.0 for r in raw]
+    lam = weights.lexical if (query_text and query_vec is not None) else 0.0
+    if lam > 0:
+        from .lexical import bm25_scores
+        lex = bm25_scores(query_text, items)
+        lhi = max(lex, default=0.0)
+        if lhi > 0:
+            mixed = [(1 - lam) * d + lam * (l / lhi) for d, l in zip(dense_n, lex)]
+        else:
+            mixed = dense_n
+        mhi = max(mixed, default=0.0)
+        dense_n = [m / mhi if mhi > 0 else 0.0 for m in mixed]
     out = []
-    for it, rel in zip(items, raw):
+    for it, rel, rel_n in zip(items, raw, dense_n):
         w = (layer_weights or {}).get(it.layer, weights)
         if query_vec is not None and rel < w.min_relevance:
             continue
         rec = recency_score(it, now, w.recency_half_life_hours)
         imp = effective_importance(it, now, w)
         if query_vec is not None:
-            rel_n = rel / hi if hi > 0 else 0.0
             gate = (1 - w.relevance_gate) + w.relevance_gate * rel_n
             total = (w.relevance + w.recency + w.importance) or 1.0
             score = (w.relevance * rel_n + gate * (w.recency * rec + w.importance * imp)) / total
         else:
             total = (w.recency + w.importance) or 1.0
             score = (w.recency * rec + w.importance * imp) / total
-        out.append(ScoredMemory(it, score, rel, rec, imp))
+        out.append(ScoredMemory(it, score, rel_n if query_vec is not None else 0.0, rec, imp))
     out.sort(key=lambda s: s.score, reverse=True)
     return out
 

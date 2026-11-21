@@ -8,7 +8,7 @@ instead of creating a duplicate. Facts can be superseded via ``key``
 from __future__ import annotations
 
 import time
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from .embeddings import Embedder, cosine
 from .scoring import RetrievalWeights, rank
@@ -18,7 +18,9 @@ from .types import Layer, MemoryItem, ScoredMemory
 
 class SemanticMemory:
     def __init__(self, storage: StorageBackend, embedder: Embedder, namespace: str,
-                 dedup_threshold: float = 0.85, weights: Optional[RetrievalWeights] = None) -> None:
+                 dedup_threshold: float = 0.85, weights: Optional[RetrievalWeights] = None,
+                 clock: Callable[[], float] = time.time) -> None:
+        self.clock = clock
         self.storage = storage
         self.embedder = embedder
         self.namespace = namespace
@@ -27,15 +29,35 @@ class SemanticMemory:
         self.weights = weights or RetrievalWeights(relevance=1.0, recency=0.1, importance=0.6,
                                                    importance_half_life_days=365.0)
 
-    def facts(self) -> List[MemoryItem]:
-        return self.storage.list(self.namespace, Layer.SEMANTIC)
+    def facts(self, include_superseded: bool = False) -> List[MemoryItem]:
+        items = self.storage.list(self.namespace, Layer.SEMANTIC)
+        return items if include_superseded else [f for f in items if "superseded_by" not in f.metadata]
+
+    def supersede(self, old: MemoryItem, new: MemoryItem) -> None:
+        """Retire ``old`` in favour of ``new`` (kept for audit, hidden from retrieval)."""
+        old.metadata["superseded_by"] = new.id
+        old.importance *= 0.3
+        self.storage.put(old)
+        new.metadata.setdefault("supersedes", []).append(old.id)
+        self.storage.put(new)
 
     def learn(self, content: str, importance: float = 0.6, key: Optional[str] = None,
               source_ids: Optional[List[str]] = None, tags: Optional[List[str]] = None,
-              pinned: bool = False, metadata: Optional[dict] = None) -> MemoryItem:
+              pinned: bool = False, metadata: Optional[dict] = None,
+              slot: Optional[str] = None, update: bool = False) -> MemoryItem:
+        """Store a fact. ``slot`` groups facts about the same thing; with ``update=True``
+        the new fact supersedes the other active facts in that slot."""
+        item = self._learn(content, importance, key, source_ids, tags, pinned, metadata, slot)
+        if slot and update:
+            for f in self.facts():
+                if f.id != item.id and f.metadata.get("slot") == slot:
+                    self.supersede(f, item)
+        return item
+
+    def _learn(self, content, importance, key, source_ids, tags, pinned, metadata, slot) -> MemoryItem:
         vec = self.embedder.embed(content)
         existing = self.facts()
-        now = time.time()
+        now = self.clock()
 
         # 1) keyed facts supersede older values
         if key:
@@ -66,9 +88,11 @@ class SemanticMemory:
         meta.update({"evidence": 1, "sources": list(source_ids or [])})
         if key:
             meta["key"] = key
+        if slot:
+            meta["slot"] = slot
         item = MemoryItem(content=content, layer=Layer.SEMANTIC, importance=importance,
                           namespace=self.namespace, embedding=vec, tags=list(tags or []),
-                          pinned=pinned, metadata=meta)
+                          pinned=pinned, metadata=meta, created_at=now, last_accessed=now)
         self.storage.put(item)
         return item
 
@@ -93,9 +117,9 @@ class SemanticMemory:
         if tags:
             items = [i for i in items if set(tags) & set(i.tags)]
         qv = self.embedder.embed(query) if query else None
-        hits = rank(items, qv, self.weights)[:k]
+        now = self.clock()
+        hits = rank(items, qv, self.weights, now=now, query_text=query)[:k]
         if reinforce:
-            now = time.time()
             for h in hits:
                 h.item.touch(now)
                 self.storage.put(h.item)
@@ -107,5 +131,11 @@ class SemanticMemory:
     def forget(self, item_id: str) -> bool:
         return self.storage.delete(item_id)
 
+    def profile(self, k: int = 8) -> List[MemoryItem]:
+        """Core profile: active keyed facts (name, location, ...) by importance."""
+        keyed = [f for f in self.facts() if f.metadata.get("key")]
+        return sorted(keyed, key=lambda f: (f.pinned, f.importance), reverse=True)[:k]
+
     def count(self) -> int:
-        return self.storage.count(self.namespace, Layer.SEMANTIC)
+        """Active (non-superseded) facts."""
+        return len(self.facts())

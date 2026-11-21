@@ -375,6 +375,34 @@ def s12_edge_cases(d):
     return "SQL-ish, unicode, 200 KB text, NUL byte, empty, nested metadata, reset"
 
 
+@scenario
+def s13_business_support_desk(d):
+    root = Path(__file__).resolve().parents[2]
+    out = d / "support.json"
+    p = subprocess.run([PY, str(root / "examples" / "support_desk.py"), "--out", str(out)],
+                       cwd=d, capture_output=True, text=True, timeout=300)
+    assert p.returncode == 0, p.stderr[-2000:]
+    r = json.loads(out.read_text())
+    direct = {row["category"]: row for row in r["direct"]["table"]}
+    para = {row["category"]: row for row in r["paraphrased"]["table"]}
+    assert direct["ALL"]["stateless"] == 0
+    assert direct["ALL"]["agentmem_context"] >= 95, direct["ALL"]
+    assert para["ALL"]["agentmem_context"] >= 90, para["ALL"]
+    assert direct["current pref"]["agentmem_top3"] >= 90, "change-of-mind not honoured"
+    assert direct["ALL"]["agentmem_context"] > direct["ALL"]["window20"] + 50
+    return (f"answer in prompt: {direct['ALL']['agentmem_context']:.0f}% direct / "
+            f"{para['ALL']['agentmem_context']:.0f}% paraphrased vs window-20 {direct['ALL']['window20']:.0f}%")
+
+
+@scenario
+def s14_ollama_adapter_mock_server(d):
+    root = Path(__file__).resolve().parents[2]
+    p = subprocess.run([PY, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(root / "tests" / "test_ollama.py")],
+                       cwd=d, capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stdout[-2000:]
+    return "OllamaAgent + OllamaEmbedder against a mock Ollama HTTP server"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir")

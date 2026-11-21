@@ -79,6 +79,24 @@ AgentMemory(
 
 The default `HashingEmbedder` has no dependencies and works on keywords. Use a real embedding model when you need semantic recall in production.
 
+## Results
+
+The full report is in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). All of it can be reproduced for free.
+
+- **Business use case** (`examples/support_desk.py`, coffee-shop support desk with 20 customers over 8 weeks): the answer was in the model's context for **100%** of week-8 questions, against **27%** for a last-20-messages chat window and **0%** for a stateless bot. That includes allergies and changes of mind.
+- **LoCoMo** public benchmark (`benchmarks/locomo.py`, 1,536 questions over months-long conversations): **56.2% evidence recall@10**, against 1.6% for a chat window and 57.9% for BM25.
+
+## Free local LLMs (Ollama)
+
+```python
+from agentmem.integrations.ollama import OllamaAgent, OllamaEmbedder
+
+mem = AgentMemory("memory.db", namespace="user-42", embedder=OllamaEmbedder("nomic-embed-text"))
+agent = OllamaAgent(mem, model="llama3.2", use_llm_memory=True)
+```
+
+This has no extra Python dependencies; it talks to `ollama serve` over HTTP. To support another provider, pass any `complete(system, messages) -> str` to `agentmem.integrations.base.ChatAgent`.
+
 ## Claude integration
 
 ```python
@@ -116,8 +134,10 @@ Relevance is normalised, so scores don't depend on the embedder's scale. The gat
 ## Testing
 
 ```bash
-pip install -e ".[dev]" && pytest               # 19 unit tests
-python tests/e2e/run_e2e.py                     # 12 end-to-end system scenarios
+pip install -e ".[dev]" && pytest               # 24 unit tests
+python tests/e2e/run_e2e.py                     # 14 end-to-end system scenarios
+python examples/support_desk.py                 # business use-case scorecard
+python benchmarks/locomo.py                     # public LoCoMo benchmark (downloads 2.8 MB)
 ```
 
 The end-to-end suite runs against the **installed** package and uses real OS processes. It covers:
@@ -128,6 +148,8 @@ The end-to-end suite runs against the **installed** package and uses real OS pro
 - a 600-turn conversation
 - decay and forgetting
 - a 5,000-memory scale run
+- the support-desk business run
+- the Ollama adapter against a mock server
 - the Claude integration through the real `anthropic` SDK with a mocked HTTP transport
 - the examples
 - hostile input (Unicode/CJK, 200 KB text, NUL bytes, SQL-like strings)
@@ -136,6 +158,6 @@ CI runs both suites on Python 3.9–3.13, with and without the optional extras.
 
 ## Performance and limits
 
-On the end-to-end machine, 5,000 episodes take about 1.4 s to write, and `recall` takes about 350 ms per query with `[fast]`. Recall does an exhaustive scan of the namespace, which is fine up to about 10,000 memories per namespace. Beyond that, implement a `StorageBackend` on a vector index (pgvector, Qdrant, ...). The default `HashingEmbedder` matches on keywords with light stemming. Plug in a real embedding model for semantic recall (car ≈ vehicle).
+On the end-to-end machine, 5,000 episodes take about 1.4 s to write, and `recall` takes about 350 ms per query with `[fast]`. Recall does an exhaustive scan of the namespace, which is fine up to about 10,000 memories per namespace. Beyond that, implement a `StorageBackend` on a vector index (pgvector, Qdrant, ...). Retrieval is hybrid: BM25 keywords plus embeddings (`RetrievalWeights.lexical`). The default `HashingEmbedder` matches on keywords with light stemming. Plug in a real embedding model for semantic recall (car ≈ vehicle).
 
 The examples are in `examples/`: `quickstart.py` (run it twice), `claude_chat.py` and `custom_backend.py`.

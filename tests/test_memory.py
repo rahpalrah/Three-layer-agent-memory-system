@@ -241,3 +241,40 @@ def test_unicode_recall():
     mem.remember("Something else entirely")
     assert "Zürich" in mem.recall("zürich budget", k=1)[0].item.content
     assert "東京" in mem.recall("東京の会議", k=1)[0].item.content
+
+
+def test_change_of_mind_supersedes_only_same_slot():
+    mem = AgentMemory()
+    with mem.session():
+        mem.add("I prefer whole beans for my coffee.", role="user")
+        mem.add("I really like dark roast coffee.", role="user")
+    with mem.session():
+        mem.add("Actually I changed my mind: I prefer medium roast coffee now.", role="user")
+    active = {f.content for f in mem.semantic.facts()}
+    assert "The user prefers medium roast coffee now." in active
+    assert "The user likes dark roast coffee." not in active          # retired
+    assert "The user prefers whole beans for my coffee." in active     # different slot: untouched
+    old = [f for f in mem.semantic.facts(include_superseded=True) if "dark" in f.content][0]
+    assert old.metadata["superseded_by"]                               # kept for audit
+
+
+def test_contentless_query_and_profile_in_context():
+    mem = AgentMemory()
+    with mem.session():
+        mem.add("My name is Zara and I live in Nairobi.", role="user")
+        for i in range(12):
+            mem.add(f"I like topic number {i} a lot.", role="user")
+        mem.add("Do you ship on weekends?", role="user")
+    ctx = mem.build_context("Who am I?")
+    assert "Zara" in ctx and "Nairobi" in ctx and ctx.startswith("User profile:")
+    assert any("Zara" in h.item.content for h in mem.recall("who am I?", k=3))
+
+
+def test_hybrid_search_discounts_ubiquitous_words():
+    # every turn starts with the speaker's name: dense-only similarity is dominated by it
+    mem = AgentMemory(auto_consolidate=False)
+    for i in range(30):
+        mem.remember(f"Caroline: chatting about item {i} of my week")
+    target = mem.remember("Caroline: I adopted a puppy named Biscuit")
+    hits = mem.recall("Caroline puppy", k=1, reinforce=False)
+    assert hits[0].item.id == target.id

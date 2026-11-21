@@ -36,7 +36,11 @@ class AgentMemory:
                  scorer: Optional[ImportanceScorer] = None, extractor: Optional[FactExtractor] = None,
                  working_capacity: int = 20, working_token_budget: Optional[int] = 4000,
                  discard_below: float = 0.1, auto_consolidate: bool = True,
-                 weights: Optional[RetrievalWeights] = None) -> None:
+                 weights: Optional[RetrievalWeights] = None,
+                 clock: Callable[[], float] = time.time) -> None:
+        """``clock`` returns "now" as a UNIX timestamp; inject one to replay
+        historical conversations or to simulate the passage of time in tests."""
+        self.clock = clock
         if storage is None:
             storage = SQLiteStorage(path) if path else InMemoryStorage()
         self.storage = storage
@@ -48,8 +52,14 @@ class AgentMemory:
         self.auto_consolidate = auto_consolidate
         self._hooks: List[Hook] = []
 
-        self.episodic = EpisodicMemory(storage, self.embedder, namespace, weights)
-        self.semantic = SemanticMemory(storage, self.embedder, namespace)
+        # The built-in HashingEmbedder is itself keyword-based, so let BM25 carry most of the
+        # relevance; with a real semantic embedder use an even hybrid (LoCoMo sweep, see benchmarks/).
+        lexical = 0.8 if isinstance(self.embedder, HashingEmbedder) else 0.5
+        if weights is None:
+            weights = RetrievalWeights(lexical=lexical)
+        self.episodic = EpisodicMemory(storage, self.embedder, namespace, weights, clock=clock)
+        self.semantic = SemanticMemory(storage, self.embedder, namespace, clock=clock)
+        self.semantic.weights.lexical = weights.lexical
         self.working = WorkingMemory(storage, namespace, working_capacity, working_token_budget,
                                      on_evict=self._on_evict)
         self.current_session: Optional[Session] = None
@@ -78,8 +88,8 @@ class AgentMemory:
             self.current_session = existing
             self.working.restore(existing.id)
         else:
-            self.current_session = Session(id=session_id or uuid.uuid4().hex,
-                                           namespace=self.namespace, metadata=metadata)
+            self.current_session = Session(id=session_id or uuid.uuid4().hex, namespace=self.namespace,
+                                           metadata=metadata, started_at=self.clock())
         self.storage.put_session(self.current_session)
         self._emit("session_start", session=self.current_session)
         return self.current_session
@@ -90,7 +100,7 @@ class AgentMemory:
             return None
         self.working.flush()
         report = self.consolidate(session_id=s.id) if self.auto_consolidate else None
-        s.ended_at = time.time()
+        s.ended_at = self.clock()
         s.summary = summary or s.summary
         self.storage.put_session(s)
         self._emit("session_end", session=s, report=report)
@@ -122,9 +132,11 @@ class AgentMemory:
         recent = self.episodic.recent(20) + self.working.items()
         imp = importance if importance is not None else self.scorer.score(content, role=role, context=recent)
         meta = dict(metadata or {}, role=role)
+        now = self.clock()
         item = MemoryItem(content=content, importance=imp, namespace=self.namespace,
                           session_id=self.current_session.id, tags=list(tags or []),
-                          metadata=meta, pinned=pinned, embedding=self.embedder.embed(content))
+                          metadata=meta, pinned=pinned, embedding=self.embedder.embed(content),
+                          created_at=now, last_accessed=now)
         self.working.add(item)
         self._emit("add", item=item)
         return item
@@ -139,8 +151,9 @@ class AgentMemory:
     def remember(self, content: str, *, importance: float = 0.5, tags: Optional[List[str]] = None,
                  metadata: Optional[Dict[str, Any]] = None, pinned: bool = False) -> MemoryItem:
         """Write an episode directly (bypassing working memory), e.g. from a tool or event log."""
+        now = self.clock()
         item = MemoryItem(content=content, importance=importance, tags=list(tags or []),
-                          metadata=dict(metadata or {}), pinned=pinned,
+                          metadata=dict(metadata or {}), pinned=pinned, created_at=now, last_accessed=now,
                           session_id=self.current_session.id if self.current_session else None)
         return self.episodic.record(item)
 
@@ -175,8 +188,9 @@ class AgentMemory:
         if tags:
             items = [i for i in items if set(tags) & set(i.tags)]
         qv = self.embedder.embed(query) if query else None
-        ranked = rank(items, qv, self.episodic.weights,
-                      layer_weights={Layer.SEMANTIC: self.semantic.weights})
+        now = self.clock()
+        ranked = rank(items, qv, self.episodic.weights, now=now,
+                      layer_weights={Layer.SEMANTIC: self.semantic.weights}, query_text=query)
         seen, out = set(), []
         for h in ranked:
             key = h.item.content.strip().lower()
@@ -187,7 +201,6 @@ class AgentMemory:
             if len(out) >= k:
                 break
         if reinforce:
-            now = time.time()
             for h in out:
                 if h.item.layer != Layer.WORKING:
                     h.item.touch(now)
@@ -195,18 +208,27 @@ class AgentMemory:
         return out
 
     def build_context(self, query: Optional[str] = None, *, k_facts: int = 6, k_episodes: int = 4,
-                      max_chars: int = 3000) -> str:
-        """A compact text block to inject into an LLM system prompt."""
-        facts = self.semantic.retrieve(query, k=k_facts)
+                      k_profile: int = 8, max_chars: int = 3000) -> str:
+        """A compact text block to inject into an LLM system prompt.
+
+        Sections: the core profile (keyed facts, always included), facts relevant
+        to ``query``, and relevant past events.
+        """
+        profile = self.semantic.profile(k_profile)
+        pids = {f.id for f in profile}
+        facts = [h for h in self.semantic.retrieve(query, k=k_facts + len(pids)) if h.item.id not in pids][:k_facts]
         eps = self.episodic.retrieve(query, k=k_episodes)
         lines: List[str] = []
+        if profile:
+            lines.append("User profile:")
+            lines += [f"- {f.content}" for f in profile]
         if facts:
-            lines.append("Known facts (long-term):")
+            lines.append("Relevant facts (long-term):")
             lines += [f"- {h.item.content}" for h in facts]
         if eps:
             lines.append("Relevant past events:")
             for h in eps:
-                when = time.strftime("%Y-%m-%d", time.localtime(h.item.created_at))
+                when = time.strftime("%Y-%m-%d", time.localtime(h.item.created_at))  # noqa
                 lines.append(f"- [{when}] ({h.item.metadata.get('role', 'event')}) {h.item.content}")
         text = "\n".join(lines)
         return text[:max_chars]
@@ -221,7 +243,8 @@ class AgentMemory:
         before = {f.id for f in self.semantic.facts()}
         for fact in self.extractor.extract(eps):
             item = self.semantic.learn(fact.content, importance=fact.importance, key=fact.key,
-                                       source_ids=fact.source_ids, tags=fact.tags)
+                                       source_ids=fact.source_ids, tags=fact.tags,
+                                       slot=getattr(fact, "slot", None), update=getattr(fact, "update", False))
             report.fact_ids.append(item.id)
             if item.id in before:
                 report.facts_reinforced += 1

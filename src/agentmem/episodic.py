@@ -6,7 +6,7 @@ so the agent can recall *when* and *in which conversation* something occurred.
 from __future__ import annotations
 
 import time
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from .embeddings import Embedder
 from .scoring import RetrievalWeights, rank, retention_score
@@ -16,7 +16,9 @@ from .types import Layer, MemoryItem, ScoredMemory
 
 class EpisodicMemory:
     def __init__(self, storage: StorageBackend, embedder: Embedder, namespace: str,
-                 weights: Optional[RetrievalWeights] = None) -> None:
+                 weights: Optional[RetrievalWeights] = None,
+                 clock: Callable[[], float] = time.time) -> None:
+        self.clock = clock
         self.storage = storage
         self.embedder = embedder
         self.namespace = namespace
@@ -39,9 +41,9 @@ class EpisodicMemory:
         if since:
             items = [i for i in items if i.created_at >= since]
         qv = self.embedder.embed(query) if query else None
-        hits = rank(items, qv, weights or self.weights)[:k]
+        now = self.clock()
+        hits = rank(items, qv, weights or self.weights, now=now, query_text=query)[:k]
         if reinforce:
-            now = time.time()
             for h in hits:
                 h.item.touch(now)
                 self.storage.put(h.item)
@@ -57,7 +59,7 @@ class EpisodicMemory:
     def forget(self, threshold: float = 0.15, max_items: Optional[int] = None,
                now: Optional[float] = None) -> int:
         """Drop low-retention episodes; optionally cap total size. Pinned items are kept."""
-        now = now or time.time()
+        now = now or self.clock()
         items = self.storage.list(self.namespace, Layer.EPISODIC)
         scored = sorted(((retention_score(i, now, self.weights), i) for i in items), key=lambda t: t[0])
         removed = 0
