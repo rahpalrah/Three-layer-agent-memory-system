@@ -32,7 +32,7 @@ class AgentMemory:
     """
 
     def __init__(self, path: Optional[Union[str, Path]] = None, *, namespace: str = "default",
-                 storage: Optional[StorageBackend] = None, embedder: Optional[Embedder] = None,
+                 storage: Optional[StorageBackend] = None, embedder: Union[Embedder, str, None] = None,
                  scorer: Optional[ImportanceScorer] = None, extractor: Optional[FactExtractor] = None,
                  working_capacity: int = 20, working_token_budget: Optional[int] = 4000,
                  discard_below: float = 0.1, auto_consolidate: bool = True,
@@ -45,15 +45,23 @@ class AgentMemory:
             storage = SQLiteStorage(path) if path else InMemoryStorage()
         self.storage = storage
         self.namespace = namespace
-        self.embedder = embedder or HashingEmbedder()
+        if embedder == "minilm":  # recommended: semantic + hybrid search, local and free
+            from .integrations.onnx import MiniLMEmbedder
+            embedder = MiniLMEmbedder()
+        elif embedder in (None, "hashing"):
+            embedder = HashingEmbedder()
+        elif isinstance(embedder, str):
+            raise ValueError(f"unknown embedder {embedder!r}; use 'minilm', 'hashing' or an Embedder")
+        self.embedder = embedder
         self.scorer = scorer or HeuristicImportanceScorer(embed=self.embedder.embed)
         self.extractor = extractor or RuleBasedExtractor()
         self.discard_below = discard_below
         self.auto_consolidate = auto_consolidate
         self._hooks: List[Hook] = []
 
-        # The built-in HashingEmbedder is itself keyword-based, so let BM25 carry most of the
-        # relevance; with a real semantic embedder use an even hybrid (LoCoMo sweep, see benchmarks/).
+        # Hybrid keyword (BM25) + vector relevance. The built-in HashingEmbedder is itself
+        # keyword-based, so BM25 carries most of the weight; with a real semantic embedder an
+        # even split was best on the LoCoMo dev split (benchmarks/tune.py).
         lexical = 0.8 if isinstance(self.embedder, HashingEmbedder) else 0.5
         if weights is None:
             weights = RetrievalWeights(lexical=lexical)
@@ -174,8 +182,12 @@ class AgentMemory:
     # ------------------------------------------------------------------ reads
     def recall(self, query: Optional[str] = None, k: int = 8,
                layers: Optional[List[Layer]] = None, tags: Optional[List[str]] = None,
-               min_score: float = 0.0, reinforce: bool = True) -> List[ScoredMemory]:
-        """Search across layers; one joint ranking by relevance, recency and importance."""
+               min_score: float = 0.0, reinforce: bool = True, expand: int = 0) -> List[ScoredMemory]:
+        """Search across layers; one joint ranking by relevance, recency and importance.
+
+        ``expand=n`` adds the n episodes before/after each episodic hit from the same
+        session (sentence-window retrieval), within the same ``k`` budget.
+        """
         from .scoring import rank
         layers = layers or [Layer.WORKING, Layer.EPISODIC, Layer.SEMANTIC]
         items: List[MemoryItem] = []
@@ -200,11 +212,40 @@ class AgentMemory:
             out.append(h)
             if len(out) >= k:
                 break
+        if expand > 0:
+            out = self._expand(out, k, expand)
         if reinforce:
             for h in out:
                 if h.item.layer != Layer.WORKING:
                     h.item.touch(now)
                     self.storage.put(h.item)
+        return out
+
+    def _expand(self, hits: List[ScoredMemory], k: int, n: int) -> List[ScoredMemory]:
+        timelines: Dict[str, List[MemoryItem]] = {}
+        out: List[ScoredMemory] = []
+        ids = set()
+        for h in hits:
+            if len(out) >= k:
+                break
+            if h.item.id in ids:
+                continue
+            group = [h]
+            if h.item.layer == Layer.EPISODIC and h.item.session_id:
+                tl = timelines.get(h.item.session_id)
+                if tl is None:
+                    tl = sorted(self.storage.list(self.namespace, Layer.EPISODIC, session_id=h.item.session_id),
+                                key=lambda i: i.created_at)
+                    timelines[h.item.session_id] = tl
+                pos = next((i for i, e in enumerate(tl) if e.id == h.item.id), None)
+                if pos is not None:
+                    for j in list(range(pos - n, pos)) + list(range(pos + 1, pos + n + 1)):
+                        if 0 <= j < len(tl):
+                            group.append(ScoredMemory(tl[j], h.score * 0.9, h.relevance, h.recency, h.importance))
+            for g in group:
+                if g.item.id not in ids and len(out) < k:
+                    ids.add(g.item.id)
+                    out.append(g)
         return out
 
     def build_context(self, query: Optional[str] = None, *, k_facts: int = 6, k_episodes: int = 4,

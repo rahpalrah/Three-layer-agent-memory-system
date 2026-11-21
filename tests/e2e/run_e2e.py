@@ -403,6 +403,31 @@ def s14_ollama_adapter_mock_server(d):
     return "OllamaAgent + OllamaEmbedder against a mock Ollama HTTP server"
 
 
+@scenario
+def s15_semantic_embeddings_minilm(d):
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        return "SKIPPED (pip install agentmem[onnx])"
+    from agentmem import AgentMemory
+    db = d / "m.db"
+    m = AgentMemory(db, namespace="u", embedder="minilm")
+    with m.session():
+        m.add("My name is Rosa and I live in Valencia.", role="user")
+        m.add("I'm allergic to shellfish.", role="user")
+        m.add("I really like dark roast coffee.", role="user")
+    with m.session():
+        m.add("Actually I changed my mind, I prefer light roast coffee now.", role="user")
+    m.close()
+    m2 = AgentMemory(db, namespace="u", embedder="minilm")   # fresh process-equivalent
+    top = m2.recall("Is there any seafood I must avoid?", k=1)[0].item.content
+    assert "shellfish" in top, top                               # no shared keywords: semantic match
+    facts = {f.content for f in m2.semantic.facts()}
+    assert "The user prefers light roast coffee now." in facts and "The user likes dark roast coffee." not in facts, facts
+    assert m2.embedder.dim == 384
+    return "paraphrase recall without shared keywords; change-of-mind with semantic dedup"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir")

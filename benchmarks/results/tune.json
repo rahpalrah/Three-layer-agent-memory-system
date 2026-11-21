@@ -1,0 +1,1158 @@
+{
+  "embedder": "minilm",
+  "dev": "1",
+  "rows": [
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 52.94444444444445,
+      "recall@10": 67.83333333333333
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 56.611111111111114,
+      "recall@10": 67.77777777777779
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 56.94444444444444,
+      "recall@10": 67.44444444444444
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 56.111111111111114,
+      "recall@10": 67.38888888888889
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 56.111111111111114,
+      "recall@10": 67.38888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 55.222222222222214,
+      "recall@10": 67.38888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 54.55555555555556,
+      "recall@10": 67.38888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 56.333333333333336,
+      "recall@10": 67.16666666666666
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 52.94444444444445,
+      "recall@10": 67.16666666666666
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 56.666666666666664,
+      "recall@10": 67.05555555555556
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 58.88888888888889,
+      "recall@10": 66.72222222222223
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 56.333333333333336,
+      "recall@10": 66.61111111111111
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 53.0,
+      "recall@10": 66.5
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 53.0,
+      "recall@10": 66.5
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 56.166666666666664,
+      "recall@10": 66.38888888888889
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 56.00000000000001,
+      "recall@10": 66.38888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 53.44444444444445,
+      "recall@10": 66.38888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 53.44444444444445,
+      "recall@10": 66.38888888888889
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 55.00000000000001,
+      "recall@10": 66.27777777777779
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 53.72222222222223,
+      "recall@10": 66.27777777777779
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 56.277777777777786,
+      "recall@10": 66.22222222222223
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 55.611111111111114,
+      "recall@10": 66.22222222222223
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 52.888888888888886,
+      "recall@10": 66.11111111111111
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 54.77777777777778,
+      "recall@10": 66.05555555555556
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 54.77777777777778,
+      "recall@10": 66.05555555555556
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 52.5,
+      "recall@10": 66.05555555555556
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 52.5,
+      "recall@10": 66.05555555555556
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 55.00000000000001,
+      "recall@10": 65.94444444444446
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 53.61111111111111,
+      "recall@10": 65.88888888888889
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 53.61111111111111,
+      "recall@10": 65.88888888888889
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 54.72222222222223,
+      "recall@10": 65.77777777777779
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 58.88888888888889,
+      "recall@10": 65.72222222222223
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 56.166666666666664,
+      "recall@10": 65.72222222222223
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 56.72222222222222,
+      "recall@10": 65.11111111111111
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 57.77777777777777,
+      "recall@10": 64.88888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 58.44444444444444,
+      "recall@10": 64.77777777777777
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 55.388888888888886,
+      "recall@10": 64.77777777777777
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 54.61111111111111,
+      "recall@10": 64.66666666666666
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 54.61111111111111,
+      "recall@10": 64.66666666666666
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 55.44444444444444,
+      "recall@10": 64.44444444444444
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 51.388888888888886,
+      "recall@10": 64.33333333333333
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 51.388888888888886,
+      "recall@10": 64.33333333333333
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 56.44444444444444,
+      "recall@10": 64.11111111111111
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 56.44444444444444,
+      "recall@10": 64.11111111111111
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 56.277777777777786,
+      "recall@10": 64.11111111111111
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 55.44444444444444,
+      "recall@10": 64.11111111111111
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 51.888888888888886,
+      "recall@10": 64.05555555555556
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 51.888888888888886,
+      "recall@10": 64.05555555555556
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 55.722222222222214,
+      "recall@10": 63.888888888888886
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 56.277777777777786,
+      "recall@10": 63.77777777777778
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 49.27777777777778,
+      "recall@10": 63.72222222222222
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 49.27777777777778,
+      "recall@10": 63.72222222222222
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 52.05555555555556,
+      "recall@10": 63.66666666666667
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 56.888888888888886,
+      "recall@10": 63.55555555555556
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 56.55555555555556,
+      "recall@10": 63.44444444444445
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 56.55555555555556,
+      "recall@10": 63.44444444444445
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 55.888888888888886,
+      "recall@10": 63.33333333333333
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 54.55555555555556,
+      "recall@10": 63.0
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 52.94444444444445,
+      "recall@10": 63.0
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 52.94444444444445,
+      "recall@10": 63.0
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 56.00000000000001,
+      "recall@10": 62.88888888888889
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 50.44444444444445,
+      "recall@10": 62.83333333333333
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 50.44444444444445,
+      "recall@10": 62.83333333333333
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 50.22222222222222,
+      "recall@10": 62.5
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 50.22222222222222,
+      "recall@10": 62.5
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 50.72222222222222,
+      "recall@10": 62.44444444444445
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 54.666666666666664,
+      "recall@10": 62.22222222222222
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 53.77777777777778,
+      "recall@10": 62.0
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 53.77777777777778,
+      "recall@10": 62.0
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 41.66666666666667,
+      "recall@10": 61.94444444444444
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 55.333333333333336,
+      "recall@10": 61.88888888888889
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 55.111111111111114,
+      "recall@10": 61.83333333333333
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 42.333333333333336,
+      "recall@10": 61.83333333333333
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 45.83333333333333,
+      "recall@10": 61.44444444444444
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 45.33333333333333,
+      "recall@10": 61.0
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 54.44444444444444,
+      "recall@10": 60.77777777777777
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 50.27777777777778,
+      "recall@10": 60.66666666666667
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 50.27777777777778,
+      "recall@10": 60.66666666666667
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 52.44444444444445,
+      "recall@10": 60.55555555555555
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 52.44444444444445,
+      "recall@10": 60.55555555555555
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 44.83333333333333,
+      "recall@10": 60.111111111111114
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 42.5,
+      "recall@10": 60.111111111111114
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 46.33333333333333,
+      "recall@10": 59.77777777777777
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 48.72222222222222,
+      "recall@10": 59.333333333333336
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 48.72222222222222,
+      "recall@10": 59.333333333333336
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 44.333333333333336,
+      "recall@10": 59.333333333333336
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 44.0,
+      "recall@10": 59.333333333333336
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 43.666666666666664,
+      "recall@10": 59.111111111111114
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 46.72222222222222,
+      "recall@10": 58.72222222222222
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 48.388888888888886,
+      "recall@10": 58.666666666666664
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 44.666666666666664,
+      "recall@10": 58.44444444444444
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 48.61111111111111,
+      "recall@10": 58.38888888888889
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 48.61111111111111,
+      "recall@10": 58.38888888888889
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 48.72222222222222,
+      "recall@10": 58.333333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 45.44444444444444,
+      "recall@10": 57.833333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 43.77777777777778,
+      "recall@10": 57.833333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 45.0,
+      "recall@10": 57.44444444444444
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 42.72222222222222,
+      "recall@10": 57.333333333333336
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 0,
+      "recall@5": 42.388888888888886,
+      "recall@10": 57.333333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 47.888888888888886,
+      "recall@10": 57.166666666666664
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 47.888888888888886,
+      "recall@10": 57.166666666666664
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 46.61111111111111,
+      "recall@10": 56.833333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 46.61111111111111,
+      "recall@10": 56.833333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 35.833333333333336,
+      "recall@10": 56.611111111111114
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 35.833333333333336,
+      "recall@10": 56.611111111111114
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 40.05555555555556,
+      "recall@10": 55.77777777777778
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 0,
+      "recall@5": 39.05555555555556,
+      "recall@10": 55.44444444444444
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 43.111111111111114,
+      "recall@10": 55.333333333333336
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 43.111111111111114,
+      "recall@10": 55.333333333333336
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 31.166666666666664,
+      "recall@10": 55.333333333333336
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 41.77777777777778,
+      "recall@10": 55.111111111111114
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 41.77777777777778,
+      "recall@10": 55.111111111111114
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "weighted",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 43.72222222222222,
+      "recall@10": 55.05555555555556
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 42.11111111111111,
+      "recall@10": 54.0
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 0,
+      "recall@5": 42.11111111111111,
+      "recall@10": 54.0
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 46.44444444444444,
+      "recall@10": 53.166666666666664
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 0,
+      "recall@5": 46.44444444444444,
+      "recall@10": 53.166666666666664
+    },
+    {
+      "lexical": 0.7,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 32.5,
+      "recall@10": 52.33333333333333
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 30.944444444444446,
+      "recall@10": 51.94444444444445
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 42.77777777777778,
+      "recall@10": 51.5
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.2,
+      "expand": 1,
+      "recall@5": 42.77777777777778,
+      "recall@10": 51.5
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 41.77777777777778,
+      "recall@10": 51.5
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.5,
+      "expand": 1,
+      "recall@5": 41.44444444444444,
+      "recall@10": 51.5
+    },
+    {
+      "lexical": 0.5,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 35.16666666666667,
+      "recall@10": 51.388888888888886
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 38.77777777777778,
+      "recall@10": 49.5
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 1.0,
+      "recency_importance_scale": 0.0,
+      "expand": 1,
+      "recall@5": 38.77777777777778,
+      "recall@10": 49.5
+    },
+    {
+      "lexical": 0.8,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 29.833333333333336,
+      "recall@10": 49.0
+    },
+    {
+      "lexical": 0.3,
+      "fusion": "rrf",
+      "gate": 0.75,
+      "recency_importance_scale": 1.0,
+      "expand": 1,
+      "recall@5": 28.833333333333332,
+      "recall@10": 47.94444444444444
+    }
+  ]
+}

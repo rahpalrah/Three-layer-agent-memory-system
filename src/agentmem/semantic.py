@@ -10,23 +10,30 @@ from __future__ import annotations
 import time
 from typing import Callable, List, Optional
 
-from .embeddings import Embedder, cosine
+from .embeddings import Embedder, cosine, tokenize
 from .scoring import RetrievalWeights, rank
 from .storage.base import StorageBackend
 from .types import Layer, MemoryItem, ScoredMemory
 
 
+def _jaccard(a: set, b: set) -> float:
+    return len(a & b) / len(a | b) if (a or b) else 1.0
+
+
 class SemanticMemory:
     def __init__(self, storage: StorageBackend, embedder: Embedder, namespace: str,
-                 dedup_threshold: float = 0.85, weights: Optional[RetrievalWeights] = None,
+                 dedup_threshold: float = 0.85, dedup_min_overlap: float = 0.6, weights: Optional[RetrievalWeights] = None,
                  clock: Callable[[], float] = time.time) -> None:
         self.clock = clock
         self.storage = storage
         self.embedder = embedder
         self.namespace = namespace
         self.dedup_threshold = dedup_threshold
+        # Embeddings rate "likes dark roast" vs "prefers light roast" as near-identical (same
+        # topic, different value), so merging also requires most content words to agree.
+        self.dedup_min_overlap = dedup_min_overlap
         # facts are durable: slow recency/importance decay by default
-        self.weights = weights or RetrievalWeights(relevance=1.0, recency=0.1, importance=0.6,
+        self.weights = weights or RetrievalWeights(relevance=1.0, recency=0.05, importance=0.3,
                                                    importance_half_life_days=365.0)
 
     def facts(self, include_superseded: bool = False) -> List[MemoryItem]:
@@ -75,13 +82,15 @@ class SemanticMemory:
                     return f
 
         # 2) near-duplicates are reinforced, not duplicated
+        new_toks = set(tokenize(content))
         best, best_sim = None, 0.0
         for f in existing:
             if f.embedding:
                 s = cosine(vec, f.embedding)
-                if s > best_sim:
+                if s >= self.dedup_threshold and s > best_sim and \
+                        _jaccard(new_toks, set(tokenize(f.content))) >= self.dedup_min_overlap:
                     best, best_sim = f, s
-        if best is not None and best_sim >= self.dedup_threshold:
+        if best is not None:
             return self._reinforce(best, importance, source_ids, now)
 
         meta = dict(metadata or {})

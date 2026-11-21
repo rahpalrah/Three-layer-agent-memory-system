@@ -81,16 +81,21 @@ class CallableImportanceScorer:
 
 @dataclass
 class RetrievalWeights:
+    # Defaults tuned on LoCoMo conversation 1 (dev split) - see benchmarks/tune.py.
     relevance: float = 1.0
-    recency: float = 0.5
-    importance: float = 0.7
+    recency: float = 0.25
+    importance: float = 0.35
     recency_half_life_hours: float = 72.0
     importance_half_life_days: float = 30.0   # importance decays unless reinforced
     access_boost: float = 0.03                # per past retrieval, capped
     min_relevance: float = 0.0                # hard filter on raw cosine when a query is given
     lexical: float = 0.5                      # hybrid search: share of relevance from BM25 keywords
                                               # (0 = embeddings only, 1 = keywords only)
-    relevance_gate: float = 0.75              # 0 = additive (Generative Agents); 1 = recency/importance
+    fusion: str = "weighted"                  # how to combine keyword + vector relevance:
+                                              # "weighted" (normalised score mix) or "rrf"
+                                              # (reciprocal rank fusion, rank-based)
+    rrf_k: int = 60
+    relevance_gate: float = 1.0               # 0 = additive (Generative Agents); 1 = recency/importance
                                               # only count in proportion to relevance
 
 
@@ -107,6 +112,19 @@ def effective_importance(item: MemoryItem, now: float, w: RetrievalWeights) -> f
     decay = 0.5 ** (age_d / w.importance_half_life_days) if w.importance_half_life_days > 0 else 1.0
     boost = min(item.access_count * w.access_boost, 0.3)
     return max(0.0, min(1.0, item.importance * (0.5 + 0.5 * decay) + boost))
+
+
+def minmax(vals):
+    """Min-max scale to [0, 1]. Embedding similarities and RRF scores live in narrow
+    bands; dividing by the max alone would leave every candidate near 1."""
+    if not vals:
+        return []
+    lo, hi = min(vals), max(vals)
+    if hi <= 0:
+        return [0.0] * len(vals)
+    if hi - lo < 1e-12:
+        return [1.0] * len(vals)
+    return [(v - lo) / (hi - lo) for v in vals]
 
 
 def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
@@ -130,19 +148,27 @@ def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
         query_vec = None  # query had no content words (e.g. "who am I?"): rank by recency/importance
     raw = cosine_many(query_vec, [i.embedding for i in items]) if query_vec is not None else [0.0] * len(items)
     raw = [max(r, 0.0) for r in raw]
-    hi = max(raw, default=0.0)
-    dense_n = [r / hi if hi > 0 else 0.0 for r in raw]
+    dense_n = minmax(raw)
     lam = weights.lexical if (query_text and query_vec is not None) else 0.0
     if lam > 0:
         from .lexical import bm25_scores
         lex = bm25_scores(query_text, items)
         lhi = max(lex, default=0.0)
-        if lhi > 0:
-            mixed = [(1 - lam) * d + lam * (l / lhi) for d, l in zip(dense_n, lex)]
+        if lhi > 0 and weights.fusion == "rrf":
+            def ranks(vals):
+                order = sorted(range(len(vals)), key=lambda i: vals[i], reverse=True)
+                r = [0] * len(vals)
+                for pos, i in enumerate(order):
+                    r[i] = pos + 1
+                return r
+            dr, lr = ranks(raw), ranks(lex)
+            mixed = [(1 - lam) / (weights.rrf_k + a) + (lam / (weights.rrf_k + b) if l > 0 else 0.0)
+                     for a, b, l in zip(dr, lr, lex)]
+        elif lhi > 0:
+            mixed = [(1 - lam) * d + lam * l for d, l in zip(dense_n, minmax(lex))]
         else:
             mixed = dense_n
-        mhi = max(mixed, default=0.0)
-        dense_n = [m / mhi if mhi > 0 else 0.0 for m in mixed]
+        dense_n = minmax(mixed)
     out = []
     for it, rel, rel_n in zip(items, raw, dense_n):
         w = (layer_weights or {}).get(it.layer, weights)

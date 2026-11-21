@@ -55,7 +55,7 @@
     "turns_observed": 812,
     "episodes_kept": 638,
     "facts_learned": 116,
-    "avg_context_chars": 575,
+    "avg_context_chars": 566,
     "avg_full_history_chars": 1051,
     "failures": [],
     "rows": [
@@ -188,7 +188,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "I'm allergic to dairy, so please no flavoured blends with it.",
+        "top_hit": "Anything else I can do for you?",
         "llm_answer": null
       },
       {
@@ -464,7 +464,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "I'm allergic to hazelnut, so please no flavoured blends with it.",
+        "top_hit": "Anything else I can do for you?",
         "llm_answer": null
       },
       {
@@ -608,7 +608,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "I'm allergic to almond, so please no flavoured blends with it.",
+        "top_hit": "Anything else I can do for you?",
         "llm_answer": null
       },
       {
@@ -812,7 +812,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "I'm allergic to hazelnut, so please no flavoured blends with it.",
+        "top_hit": "Anything else I can do for you?",
         "llm_answer": null
       },
       {
@@ -884,7 +884,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "I'm allergic to dairy, so please no flavoured blends with it.",
+        "top_hit": "Anything else I can do for you?",
         "llm_answer": null
       },
       {
@@ -1304,7 +1304,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "I'm allergic to almond, so please no flavoured blends with it.",
+        "top_hit": "Anything else I can do for you?",
         "llm_answer": null
       },
       {
@@ -1478,7 +1478,7 @@
         "n": 20,
         "stateless": 0.0,
         "window20": 100.0,
-        "agentmem_top3": 95.0,
+        "agentmem_top3": 90.0,
         "agentmem_context": 100.0
       },
       {
@@ -1486,7 +1486,7 @@
         "n": 20,
         "stateless": 0.0,
         "window20": 0.0,
-        "agentmem_top3": 75.0,
+        "agentmem_top3": 70.0,
         "agentmem_context": 100.0
       },
       {
@@ -1502,14 +1502,14 @@
         "n": 116,
         "stateless": 0.0,
         "window20": 26.724137931034484,
-        "agentmem_top3": 47.41379310344828,
+        "agentmem_top3": 45.689655172413794,
         "agentmem_context": 100.0
       }
     ],
     "turns_observed": 812,
     "episodes_kept": 638,
     "facts_learned": 116,
-    "avg_context_chars": 550,
+    "avg_context_chars": 548,
     "avg_full_history_chars": 1051,
     "failures": [],
     "rows": [
@@ -1654,7 +1654,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user prefers whole beans for my coffee.",
+        "top_hit": "The user likes light roast coffee.",
         "llm_answer": null
       },
       {
@@ -1714,7 +1714,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Aisha.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -1760,7 +1760,7 @@
         "expected": "espresso grind",
         "stateless": false,
         "window20": false,
-        "agentmem_top3": true,
+        "agentmem_top3": false,
         "agentmem_context": true,
         "top_hit": "The user lives in Osaka.",
         "llm_answer": null
@@ -1798,7 +1798,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user prefers espresso grind for my coffee.",
+        "top_hit": "The user likes light roast coffee.",
         "llm_answer": null
       },
       {
@@ -1844,9 +1844,9 @@
         "expected": "#4171",
         "stateless": false,
         "window20": true,
-        "agentmem_top3": true,
+        "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user lives in Lisbon.",
+        "top_hit": "Updated!",
         "llm_answer": null
       },
       {
@@ -1918,7 +1918,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Liam.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -1930,7 +1930,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user prefers whole beans for my coffee.",
+        "top_hit": "The user likes light roast coffee.",
         "llm_answer": null
       },
       {
@@ -1990,7 +1990,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Fatima.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2062,7 +2062,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Noah.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2074,7 +2074,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user prefers whole beans for my coffee.",
+        "top_hit": "The user likes dark roast coffee.",
         "llm_answer": null
       },
       {
@@ -2108,7 +2108,7 @@
         "expected": "pour-over grind",
         "stateless": false,
         "window20": false,
-        "agentmem_top3": false,
+        "agentmem_top3": true,
         "agentmem_context": true,
         "top_hit": "My order #4326 arrived damaged, the bag was torn.",
         "llm_answer": null
@@ -2134,7 +2134,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Elena.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2182,7 +2182,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "My order #4396 arrived damaged, the bag was torn.",
+        "top_hit": "Yes, the replacement is on its way.",
         "llm_answer": null
       },
       {
@@ -2206,7 +2206,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user prefers espresso grind for my coffee.",
+        "top_hit": "The user likes light roast coffee.",
         "llm_answer": null
       },
       {
@@ -2240,9 +2240,9 @@
         "expected": "espresso grind",
         "stateless": false,
         "window20": false,
-        "agentmem_top3": true,
+        "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "You promised the user a free replacement for order #4684.",
+        "top_hit": "My order #4684 arrived damaged, the bag was torn.",
         "llm_answer": null
       },
       {
@@ -2254,7 +2254,7 @@
         "window20": true,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user's name is Chloe.",
+        "top_hit": "Updated!",
         "llm_answer": null
       },
       {
@@ -2266,7 +2266,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Chloe.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2338,7 +2338,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Omar.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2398,7 +2398,7 @@
         "window20": true,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user's name is Hannah.",
+        "top_hit": "Updated!",
         "llm_answer": null
       },
       {
@@ -2410,7 +2410,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Hannah.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2494,7 +2494,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "The user prefers whole beans for my coffee.",
+        "top_hit": "The user likes dark roast coffee.",
         "llm_answer": null
       },
       {
@@ -2530,7 +2530,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "My order #4796 arrived damaged, the bag was torn.",
+        "top_hit": "Yes, the replacement is on its way.",
         "llm_answer": null
       },
       {
@@ -2614,7 +2614,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Lucas.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2686,7 +2686,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Zara.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2758,7 +2758,7 @@
         "window20": false,
         "agentmem_top3": false,
         "agentmem_context": true,
-        "top_hit": "The user's name is Ethan.",
+        "top_hit": "Welcome!",
         "llm_answer": null
       },
       {
@@ -2806,7 +2806,7 @@
         "window20": false,
         "agentmem_top3": true,
         "agentmem_context": true,
-        "top_hit": "My order #4688 arrived damaged, the bag was torn.",
+        "top_hit": "Yes, the replacement is on its way.",
         "llm_answer": null
       },
       {
@@ -2907,5 +2907,6 @@
       }
     ]
   },
-  "seconds": 5.72
+  "embedder": "hashing",
+  "seconds": 5.54
 }

@@ -18,6 +18,7 @@ needs an LLM to read the retrieved context and answer; see --help.)
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import math
 import random
@@ -36,6 +37,18 @@ URL = "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10
 HERE = Path(__file__).resolve().parent
 # category ids as used by the LoCoMo evaluation code
 CATEGORIES = {1: "multi-hop", 2: "temporal", 3: "open-domain", 4: "single-hop", 5: "adversarial"}
+
+
+def parse_range(spec: str):
+    """'2-10' or '1,3,5' -> 1-based conversation numbers."""
+    out = []
+    for part in spec.split(","):
+        if "-" in part:
+            a, b = part.split("-")
+            out += list(range(int(a), int(b) + 1))
+        elif part:
+            out.append(int(part))
+    return out
 
 
 def load(path: Path):
@@ -95,11 +108,21 @@ class BM25:
 
 
 # ------------------------------------------------------------------ systems
-def ingest_agentmem(sample, weights=None, discard_below=0.1):
+def make_embedder(name):
+    if name == "hashing":
+        from agentmem import HashingEmbedder
+        return HashingEmbedder()
+    if name == "minilm":
+        from agentmem.integrations.onnx import MiniLMEmbedder
+        return MiniLMEmbedder()
+    raise ValueError(name)
+
+
+def ingest_agentmem(sample, embedder):
     conv = sample["conversation"]
     clock = {"t": 0.0}
     mem = AgentMemory(storage=InMemoryStorage(), namespace=sample["sample_id"], clock=lambda: clock["t"],
-                      weights=weights, discard_below=discard_below)
+                      embedder=embedder)
     last = 0.0
     for n, date, turns in sessions(conv):
         start = parse_date(date, last + 86400)
@@ -113,12 +136,22 @@ def ingest_agentmem(sample, weights=None, discard_below=0.1):
     return mem
 
 
-def agentmem_retriever(mem):
+def agentmem_retriever(mem, weights: RetrievalWeights, expand: int = 0):
     ep_dia = {e.id: e.metadata.get("dia_id") for e in mem.storage.list(mem.namespace, Layer.EPISODIC)}
+    sem_base = mem.semantic.weights
 
     def retrieve(question, k):
+        ep_w, sem_w = mem.episodic.weights, mem.semantic.weights
+        mem.episodic.weights = weights
+        mem.semantic.weights = dataclasses.replace(sem_base, lexical=weights.lexical, fusion=weights.fusion,
+                                                   recency=sem_base.recency * (weights.recency > 0),
+                                                   importance=sem_base.importance * (weights.importance > 0))
+        try:
+            hits = mem.recall(question, k=k, reinforce=False, expand=expand)
+        finally:
+            mem.episodic.weights, mem.semantic.weights = ep_w, sem_w
         out = []
-        for h in mem.recall(question, k=k, reinforce=False):
+        for h in hits:
             if h.item.layer == Layer.SEMANTIC:  # facts point back to their source turns
                 out += [ep_dia.get(s) for s in h.item.metadata.get("sources", [])]
             else:
@@ -127,55 +160,67 @@ def agentmem_retriever(mem):
     return retrieve
 
 
+def configs(embedder_name):
+    """(label, weights, expand) evaluated per embedder."""
+    W = RetrievalWeights
+    lam = 0.8 if embedder_name == "hashing" else 0.5
+    return [
+        ("v0 defaults (dense only)", W(lexical=0.0, recency=0.5, importance=0.7, relevance_gate=0.75), 0),
+        ("v1 defaults (hybrid, untuned weights)", W(lexical=lam, recency=0.5, importance=0.7, relevance_gate=0.75), 0),
+        ("dense only", W(lexical=0.0), 0),
+        ("hybrid RRF", W(lexical=0.5, fusion="rrf"), 0),
+        ("SHIPPED: hybrid (tuned)", W(lexical=lam), 0),
+        ("SHIPPED + neighbours", W(lexical=lam), 1),
+    ]
+
+
 def all_turns(sample):
     return [t for _, _, turns in sessions(sample["conversation"]) for t in turns]
 
 
-def run(data, ks, include_adversarial=False, seed=0, lexical=0.5):
+def run(data, ks, embedders=("hashing",), include_adversarial=False, seed=0):
     rng = random.Random(seed)
-    systems = ["random", "recency", "bm25", "agentmem (relevance only)", "agentmem"]
-    # results[system][k] -> list of (category, recall, hit)
-    results = {s: {k: [] for k in ks} for s in systems}
+    results = defaultdict(lambda: {k: [] for k in ks})
     kept = {"turns": 0, "episodes": 0, "facts": 0}
     t0 = time.perf_counter()
-    for sample in data:
+    embs = {name: make_embedder(name) for name in embedders}
+    for si, sample in enumerate(data):
         turns = all_turns(sample)
         ids = [t["dia_id"] for t in turns]
         bm25 = BM25([turn_text(t) for t in turns])
-        full = ingest_agentmem(sample, weights=RetrievalWeights(lexical=lexical))
-        rel_only = ingest_agentmem(sample, weights=RetrievalWeights(recency=0.0, importance=0.0, lexical=lexical))
-        kept["turns"] += len(turns)
-        kept["episodes"] += full.episodic.count()
-        kept["facts"] += full.semantic.count()
         retrievers = {
             "random": lambda q, k: rng.sample(ids, min(k, len(ids))),
-            "recency": lambda q, k: ids[-k:],
-            "bm25": lambda q, k: [ids[i] for i in bm25.top(q, k)],
-            "agentmem (relevance only)": agentmem_retriever(rel_only),
-            "agentmem": agentmem_retriever(full),
+            "recency (chat window)": lambda q, k: ids[-k:],
+            "BM25": lambda q, k: [ids[i] for i in bm25.top(q, k)],
         }
+        for name, emb in embs.items():
+            mem = ingest_agentmem(sample, emb)
+            if name == embedders[0]:
+                kept["turns"] += len(turns)
+                kept["episodes"] += mem.episodic.count()
+                kept["facts"] += mem.semantic.count()
+            for label, w, expand in configs(name):
+                retrievers[f"agentmem [{name}] {label}"] = agentmem_retriever(mem, w, expand)
+        print(f"  conversation {si + 1}/{len(data)} ingested ({time.perf_counter() - t0:.0f}s)", file=sys.stderr)
         for qa in sample["qa"]:
             cat = qa["category"]
             if cat == 5 and not include_adversarial:
                 continue
-            ev = set(qa.get("evidence") or [])
-            # evidence ids occasionally carry formatting noise like "D8:6; D9:17"
-            ev = {e.strip() for x in ev for e in re.split(r"[;,]", x) if e.strip()}
+            ev = {e.strip() for x in (qa.get("evidence") or []) for e in re.split(r"[;,]", x) if e.strip()}
             if not ev:
                 continue
             for name, fn in retrievers.items():
                 got_all = fn(qa["question"], max(ks))
                 for k in ks:
-                    got = set(got_all[:k])
-                    inter = len(got & ev)
+                    inter = len(set(got_all[:k]) & ev)
                     results[name][k].append((cat, inter / len(ev), inter > 0))
-    return results, kept, time.perf_counter() - t0
+    return dict(results), kept, time.perf_counter() - t0
 
 
 def report(results, kept, seconds, ks):
     lines = []
     n = len(next(iter(results.values()))[ks[0]])
-    lines.append(f"LoCoMo retrieval - {n} questions, {kept['turns']} dialogue turns, 10 conversations")
+    lines.append(f"LoCoMo retrieval - {n} questions, {kept['turns']} dialogue turns")
     lines.append(f"agentmem kept {kept['episodes']} episodes and {kept['facts']} facts; ran in {seconds:.0f}s\n")
     hdr = "| system | " + " | ".join(f"recall@{k}" for k in ks) + " | " + " | ".join(f"hit@{k}" for k in ks) + " |"
     lines += [hdr, "|" + "---|" * (1 + 2 * len(ks))]
@@ -187,8 +232,9 @@ def report(results, kept, seconds, ks):
         lines.append(f"| {name} | " + " | ".join(f"{v:.1f}%" for v in r) + " | " + " | ".join(f"{v:.1f}%" for v in h) + " |")
     k = ks[1] if len(ks) > 1 else ks[0]
     lines.append(f"\nrecall@{k} by question type:\n")
-    cats = sorted({c for c, _, _ in results["agentmem"][k]})
-    lines.append("| system | " + " | ".join(f"{CATEGORIES.get(c, c)} (n={sum(1 for x in results['agentmem'][k] if x[0]==c)})" for c in cats) + " |")
+    any_sys = next(iter(results.values()))[k]
+    cats = sorted({c for c, _, _ in any_sys})
+    lines.append("| system | " + " | ".join(f"{CATEGORIES.get(c, c)} (n={sum(1 for x in any_sys if x[0]==c)})" for c in cats) + " |")
     lines.append("|" + "---|" * (1 + len(cats)))
     by_cat = {}
     for name, byk in results.items():
@@ -206,11 +252,16 @@ def main(argv=None):
     ap.add_argument("--k", type=int, nargs="+", default=[5, 10, 25])
     ap.add_argument("--include-adversarial", action="store_true")
     ap.add_argument("--limit", type=int, help="only the first N conversations")
-    ap.add_argument("--lexical", type=float, default=0.8, help="BM25 share of relevance (hybrid search)")
+    ap.add_argument("--conversations", help="1-based subset, e.g. 2-10 (held-out test split)")
+    ap.add_argument("--embedders", nargs="+", default=["hashing"], choices=["hashing", "minilm"],
+                    help="minilm = all-MiniLM-L6-v2 via ONNX (pip install agentmem[onnx])")
     ap.add_argument("--out", default=str(HERE / "results" / "locomo.json"))
     a = ap.parse_args(argv)
-    data = load(Path(a.data))[: a.limit]
-    results, kept, secs = run(data, a.k, a.include_adversarial, lexical=a.lexical)
+    data = load(Path(a.data))
+    if a.conversations:
+        data = [data[i - 1] for i in parse_range(a.conversations)]
+    data = data[: a.limit]
+    results, kept, secs = run(data, a.k, tuple(a.embedders), a.include_adversarial)
     text, js = report(results, kept, secs, a.k)
     print(text)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)

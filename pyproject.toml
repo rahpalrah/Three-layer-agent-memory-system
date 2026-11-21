@@ -14,6 +14,7 @@ dependencies = []
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]
 fast = ["numpy>=1.24"]
+onnx = ["numpy>=1.24", "onnxruntime>=1.16", "tokenizers>=0.15"]
 dev = ["pytest>=7"]
 
 [project.scripts]

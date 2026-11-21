@@ -107,7 +107,7 @@ def paraphrased_probes(c):
     return ps
 
 
-def run(workdir: Path, ollama_model=None, paraphrase=False):
+def run(workdir: Path, ollama_model=None, paraphrase=False, embedder=None):
     customers = make_customers()
     rng = random.Random(42)
     now = {"t": T0}
@@ -116,7 +116,7 @@ def run(workdir: Path, ollama_model=None, paraphrase=False):
     stats = {"turns": 0, "kept_episodes": 0, "facts": 0, "ctx_chars": [], "history_chars": []}
 
     for c in customers:
-        mem = AgentMemory(db, namespace=c["id"], clock=lambda: now["t"])
+        mem = AgentMemory(db, namespace=c["id"], clock=lambda: now["t"], embedder=embedder)
         history = []  # everything ever said - what a "window" bot draws from
         for day, turns in conversations(c, rng):
             now["t"] = T0 + day * DAY
@@ -181,16 +181,23 @@ def summarize(rows, stats):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--ollama", metavar="MODEL", help="also have a local Ollama model answer each probe")
+    ap.add_argument("--embedder", default="hashing", choices=["hashing", "minilm"],
+                    help="minilm = all-MiniLM-L6-v2 semantic embeddings (pip install agentmem[onnx])")
     ap.add_argument("--out", default=str(Path(__file__).resolve().parents[1] / "benchmarks/results/support_desk.json"))
     a = ap.parse_args(argv)
     t = time.perf_counter()
+    emb = None
+    if a.embedder == "minilm":
+        from agentmem.integrations.onnx import MiniLMEmbedder
+        emb = MiniLMEmbedder()
     results = {}
     for mode in ("direct", "paraphrased"):
         with tempfile.TemporaryDirectory() as d:
-            rows, stats = run(Path(d), a.ollama, paraphrase=(mode == "paraphrased"))
+            rows, stats = run(Path(d), a.ollama, paraphrase=(mode == "paraphrased"), embedder=emb)
         results[mode] = (summarize(rows, stats), rows)
         report(mode, results[mode][0])
     out = {m: {**s, "rows": rows} for m, (s, rows) in results.items()}
+    out["embedder"] = a.embedder
     out["seconds"] = round(time.perf_counter() - t, 2)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(out, indent=2))

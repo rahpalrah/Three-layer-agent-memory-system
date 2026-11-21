@@ -29,6 +29,7 @@ A zero-dependency Python SDK that gives an agent **long-term memory** that persi
 pip install -e .                 # core, no dependencies
 pip install -e ".[anthropic]"    # + Claude integration
 pip install -e ".[fast]"         # + numpy-accelerated similarity search
+pip install -e ".[onnx]"         # + local semantic embeddings (recommended)
 ```
 
 ## Quickstart
@@ -83,8 +84,22 @@ The default `HashingEmbedder` has no dependencies and works on keywords. Use a r
 
 The full report is in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). All of it can be reproduced for free.
 
-- **Business use case** (`examples/support_desk.py`, coffee-shop support desk with 20 customers over 8 weeks): the answer was in the model's context for **100%** of week-8 questions, against **27%** for a last-20-messages chat window and **0%** for a stateless bot. That includes allergies and changes of mind.
-- **LoCoMo** public benchmark (`benchmarks/locomo.py`, 1,536 questions over months-long conversations): **56.2% evidence recall@10**, against 1.6% for a chat window and 57.9% for BM25.
+| | chat history | BM25 | **agentmem** |
+|---|---|---|---|
+| LoCoMo public benchmark, held-out conversations, evidence recall@10 | 1.6% | 57.8% | **63.3%** |
+| Coffee-shop support desk: answer in the model's context after 8 weeks | 27% | — | **100%** |
+
+## Recommended setup
+
+```bash
+pip install "agentmem[onnx]"     # adds local semantic embeddings (all-MiniLM-L6-v2, ~90 MB, CPU)
+```
+
+```python
+mem = AgentMemory("memory.db", namespace="user-42", embedder="minilm")
+```
+
+This uses hybrid retrieval (BM25 keywords plus MiniLM vectors), with defaults tuned on a LoCoMo dev split and validated on held-out data. The model is downloaded once from a public mirror and verified by SHA-256. Set `AGENTMEM_MODEL_DIR` to choose where it is cached.
 
 ## Free local LLMs (Ollama)
 
@@ -124,20 +139,23 @@ agentmem --db memory.db --ns user-42 export dump.json
 `recall()` ranks every candidate from all layers together:
 
 ```
-score = w_rel·rel' + gate(rel')·(w_rec·recency + w_imp·importance)
-        rel' = relevance min-max normalised across candidates
-        gate = (1 − relevance_gate) + relevance_gate·rel'
+relevance = minmax( (1−λ)·minmax(vector similarity) + λ·minmax(BM25) )     # hybrid search
+score     = w_rel·relevance + relevance·(w_rec·recency + w_imp·importance)  # relevance-gated
 ```
 
-Relevance is normalised, so scores don't depend on the embedder's scale. The gate stops an important but unrelated memory from outranking a relevant one; set `relevance_gate=0` to get the purely additive *Generative Agents* formula. Each layer has its own decay: semantic facts fade over about a year, episodes over about a month.
+- **Defaults** (`RetrievalWeights`): λ = 0.5 with semantic embeddings and 0.8 with the built-in keyword embedder; `w_rec` = 0.25 and `w_imp` = 0.35. They were tuned on a LoCoMo dev split.
+- **Fusion:** `fusion="rrf"` switches to reciprocal rank fusion.
+- **Neighbours:** `recall(..., expand=1)` also returns the turns next to each hit (sentence-window retrieval).
+- **Decay:** each layer has its own. Semantic facts fade over about a year, episodes over about a month.
 
 ## Testing
 
 ```bash
 pip install -e ".[dev]" && pytest               # 24 unit tests
-python tests/e2e/run_e2e.py                     # 14 end-to-end system scenarios
+python tests/e2e/run_e2e.py                     # 15 end-to-end system scenarios
 python examples/support_desk.py                 # business use-case scorecard
-python benchmarks/locomo.py                     # public LoCoMo benchmark (downloads 2.8 MB)
+python benchmarks/tune.py                       # tune retrieval on the LoCoMo dev split
+python benchmarks/locomo.py --conversations 2-10 --embedders hashing minilm   # held-out test
 ```
 
 The end-to-end suite runs against the **installed** package and uses real OS processes. It covers:
@@ -150,6 +168,7 @@ The end-to-end suite runs against the **installed** package and uses real OS pro
 - a 5,000-memory scale run
 - the support-desk business run
 - the Ollama adapter against a mock server
+- MiniLM semantic recall
 - the Claude integration through the real `anthropic` SDK with a mocked HTTP transport
 - the examples
 - hostile input (Unicode/CJK, 200 KB text, NUL bytes, SQL-like strings)
