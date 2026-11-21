@@ -175,7 +175,8 @@ def test_sqlite_roundtrip(db):
     it = MemoryItem("hello", tags=["t"], metadata={"a": 1}, embedding=[0.1, 0.2], pinned=True)
     st.put(it)
     back = st.get(it.id)
-    assert back.to_dict(True) == it.to_dict(True)
+    assert back.embedding == pytest.approx(it.embedding)
+    assert back.to_dict() == it.to_dict()
     assert st.delete(it.id) and st.get(it.id) is None
 
 
@@ -222,3 +223,21 @@ def test_extraction_quality():
     assert "The user lives in New York." in facts
     assert "The user's exam is on May 2." in facts
     assert HeuristicImportanceScorer().score("ok thanks!", role="user") < 0.1
+
+
+def test_query_relevance_beats_importance():
+    mem = AgentMemory()
+    with mem.session():
+        mem.add("Hi, my name is Alice Smith and I work at Acme Corp.", role="user")
+        mem.add("I'm allergic to peanuts. Remember that my flight is on December 12.", role="user")
+    assert "Acme" in mem.recall("where does the user work?", k=1)[0].item.content
+    assert "December 12" in mem.recall("when is my flight?", k=1)[0].item.content
+
+
+def test_unicode_recall():
+    mem = AgentMemory()
+    mem.remember("Réunion à Zürich über das Budget")
+    mem.remember("東京で会議があります")
+    mem.remember("Something else entirely")
+    assert "Zürich" in mem.recall("zürich budget", k=1)[0].item.content
+    assert "東京" in mem.recall("東京の会議", k=1)[0].item.content

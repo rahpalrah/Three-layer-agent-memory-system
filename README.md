@@ -28,6 +28,7 @@ A zero-dependency Python SDK that gives an agent **long-term memory** that persi
 ```bash
 pip install -e .                 # core, no dependencies
 pip install -e ".[anthropic]"    # + Claude integration
+pip install -e ".[fast]"         # + numpy-accelerated similarity search
 ```
 
 ## Quickstart
@@ -100,10 +101,41 @@ agentmem --db memory.db --ns user-42 list --layer semantic
 agentmem --db memory.db --ns user-42 export dump.json
 ```
 
-## Development
+## Retrieval
+
+`recall()` ranks every candidate from all layers together:
+
+```
+score = w_rel·rel' + gate(rel')·(w_rec·recency + w_imp·importance)
+        rel' = relevance min-max normalised across candidates
+        gate = (1 − relevance_gate) + relevance_gate·rel'
+```
+
+Relevance is normalised, so scores don't depend on the embedder's scale. The gate stops an important but unrelated memory from outranking a relevant one; set `relevance_gate=0` to get the purely additive *Generative Agents* formula. Each layer has its own decay: semantic facts fade over about a year, episodes over about a month.
+
+## Testing
 
 ```bash
-pip install -e ".[dev]" && pytest
+pip install -e ".[dev]" && pytest               # 19 unit tests
+python tests/e2e/run_e2e.py                     # 12 end-to-end system scenarios
 ```
+
+The end-to-end suite runs against the **installed** package and uses real OS processes. It covers:
+- persistence across processes
+- recovery after `kill -9` mid-session
+- 6 concurrent writer processes and 8 threads on one database
+- the full CLI workflow
+- a 600-turn conversation
+- decay and forgetting
+- a 5,000-memory scale run
+- the Claude integration through the real `anthropic` SDK with a mocked HTTP transport
+- the examples
+- hostile input (Unicode/CJK, 200 KB text, NUL bytes, SQL-like strings)
+
+CI runs both suites on Python 3.9–3.13, with and without the optional extras.
+
+## Performance and limits
+
+On the end-to-end machine, 5,000 episodes take about 1.4 s to write, and `recall` takes about 350 ms per query with `[fast]`. Recall does an exhaustive scan of the namespace, which is fine up to about 10,000 memories per namespace. Beyond that, implement a `StorageBackend` on a vector index (pgvector, Qdrant, ...). The default `HashingEmbedder` matches on keywords with light stemming. Plug in a real embedding model for semantic recall (car ≈ vehicle).
 
 The examples are in `examples/`: `quickstart.py` (run it twice), `claude_chat.py` and `custom_backend.py`.

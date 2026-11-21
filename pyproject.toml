@@ -13,6 +13,7 @@ dependencies = []
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]
+fast = ["numpy>=1.24"]
 dev = ["pytest>=7"]
 
 [project.scripts]

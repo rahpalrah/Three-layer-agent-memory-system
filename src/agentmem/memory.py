@@ -161,27 +161,38 @@ class AgentMemory:
     # ------------------------------------------------------------------ reads
     def recall(self, query: Optional[str] = None, k: int = 8,
                layers: Optional[List[Layer]] = None, tags: Optional[List[str]] = None,
-               min_score: float = 0.0) -> List[ScoredMemory]:
-        """Search across layers; returns hits ranked by relevance x recency x importance."""
+               min_score: float = 0.0, reinforce: bool = True) -> List[ScoredMemory]:
+        """Search across layers; one joint ranking by relevance, recency and importance."""
+        from .scoring import rank
         layers = layers or [Layer.WORKING, Layer.EPISODIC, Layer.SEMANTIC]
-        hits: List[ScoredMemory] = []
+        items: List[MemoryItem] = []
         if Layer.SEMANTIC in layers:
-            hits += self.semantic.retrieve(query, k=k, tags=tags)
+            items += self.semantic.facts()
         if Layer.EPISODIC in layers:
-            hits += self.episodic.retrieve(query, k=k, tags=tags)
+            items += self.storage.list(self.namespace, Layer.EPISODIC)
         if Layer.WORKING in layers:
-            from .scoring import rank
-            qv = self.embedder.embed(query) if query else None
-            w = [i for i in self.working.items() if not tags or set(tags) & set(i.tags)]
-            hits += rank(w, qv, self.episodic.weights)[:k]
+            items += self.working.items()
+        if tags:
+            items = [i for i in items if set(tags) & set(i.tags)]
+        qv = self.embedder.embed(query) if query else None
+        ranked = rank(items, qv, self.episodic.weights,
+                      layer_weights={Layer.SEMANTIC: self.semantic.weights})
         seen, out = set(), []
-        for h in sorted(hits, key=lambda h: h.score, reverse=True):
+        for h in ranked:
             key = h.item.content.strip().lower()
             if key in seen or h.score < min_score:
                 continue
             seen.add(key)
             out.append(h)
-        return out[:k]
+            if len(out) >= k:
+                break
+        if reinforce:
+            now = time.time()
+            for h in out:
+                if h.item.layer != Layer.WORKING:
+                    h.item.touch(now)
+                    self.storage.put(h.item)
+        return out
 
     def build_context(self, query: Optional[str] = None, *, k_facts: int = 6, k_episodes: int = 4,
                       max_chars: int = 3000) -> str:

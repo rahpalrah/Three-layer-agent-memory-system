@@ -9,15 +9,31 @@ from __future__ import annotations
 
 import hashlib
 import math
+import operator
 import re
-from typing import Callable, List, Protocol, Sequence, runtime_checkable
+from typing import Callable, List, Optional, Protocol, Sequence, runtime_checkable
 
-_WORD = re.compile(r"[a-z0-9']+")
+try:  # optional acceleration
+    import numpy as _np
+except ImportError:  # pragma: no cover
+    _np = None
+
+_WORD = re.compile(r"[^\W_]+(?:'[^\W_]+)*")
+_CJK = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]")
 _STOP = frozenset(
     "a an the is are was were be been am i you he she it we they me my your our "
     "to of in on at for and or but with that this these those do does did have has "
-    "had will would can could should so as by from what which who about".split()
+    "had will would can could should so as by from what which who whom about where when why how "
+    "does there their them its user user's users".split()  # "the user ..." prefixes every fact
 )
+
+
+def _stem(t: str) -> str:
+    """Tiny suffix stripper so work/works/working/worked share a token."""
+    for suf in ("ing", "ed", "es", "s"):
+        if len(t) > len(suf) + 2 and t.endswith(suf) and not t.endswith("ss"):
+            return t[: -len(suf)]
+    return t
 
 
 @runtime_checkable
@@ -28,7 +44,14 @@ class Embedder(Protocol):
 
 
 def tokenize(text: str) -> List[str]:
-    return [t for t in _WORD.findall(text.lower()) if t not in _STOP]
+    """Unicode word tokens; scripts without spaces (CJK) become character bigrams."""
+    out: List[str] = []
+    for t in _WORD.findall(text.lower()):
+        if _CJK.search(t):
+            out += [t[i:i + 2] for i in range(max(1, len(t) - 1))]
+        elif t not in _STOP:
+            out.append(_stem(t))
+    return out
 
 
 class HashingEmbedder:
@@ -73,7 +96,24 @@ def normalize(vec: List[float]) -> List[float]:
 def cosine(a: Sequence[float], b: Sequence[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
+    dot = sum(map(operator.mul, a, b))
+    na = math.sqrt(sum(map(operator.mul, a, a)))
+    nb = math.sqrt(sum(map(operator.mul, b, b)))
     return dot / (na * nb) if na and nb else 0.0
+
+
+def cosine_many(query: Sequence[float], vectors: Sequence[Optional[Sequence[float]]]) -> List[float]:
+    """Cosine of ``query`` against many vectors; uses numpy when installed."""
+    if _np is not None and vectors:
+        dim = len(query)
+        ok = [i for i, v in enumerate(vectors) if v is not None and len(v) == dim]
+        out = [0.0] * len(vectors)
+        if ok:
+            m = _np.asarray([vectors[i] for i in ok], dtype=_np.float32)
+            q = _np.asarray(query, dtype=_np.float32)
+            denom = _np.linalg.norm(m, axis=1) * (_np.linalg.norm(q) or 1.0)
+            sims = (m @ q) / _np.where(denom == 0, 1.0, denom)
+            for i, s in zip(ok, sims.tolist()):
+                out[i] = s
+        return out
+    return [cosine(query, v) if v else 0.0 for v in vectors]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from array import array
 import sqlite3
 import threading
 from pathlib import Path
@@ -19,7 +20,7 @@ CREATE TABLE IF NOT EXISTS memories (
     session_id TEXT,
     tags TEXT NOT NULL DEFAULT '[]',
     metadata TEXT NOT NULL DEFAULT '{}',
-    embedding TEXT,
+    embedding BLOB,
     pinned INTEGER NOT NULL DEFAULT 0,
     access_count INTEGER NOT NULL DEFAULT 0,
     created_at REAL NOT NULL,
@@ -40,6 +41,16 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 SCHEMA_VERSION = "1"
 
 
+def _decode_vec(v):
+    if not v:
+        return None
+    if isinstance(v, str):  # legacy JSON text
+        return json.loads(v)
+    a = array("f")
+    a.frombytes(v)
+    return a.tolist()
+
+
 class SQLiteStorage(StorageBackend):
     """Durable, zero-config persistence - memories survive across sessions and restarts."""
 
@@ -47,11 +58,13 @@ class SQLiteStorage(StorageBackend):
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(self.path, check_same_thread=False)
+        self._conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
         with self._lock, self._conn:
             self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA synchronous=NORMAL")  # durable with WAL, much faster
+            self._conn.execute("PRAGMA busy_timeout=30000")   # wait for other writers
             self._conn.executescript(_SCHEMA)
             self._conn.execute("INSERT OR IGNORE INTO meta VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
 
@@ -61,7 +74,7 @@ class SQLiteStorage(StorageBackend):
             id=r["id"], namespace=r["namespace"], layer=Layer(r["layer"]), content=r["content"],
             importance=r["importance"], session_id=r["session_id"], tags=json.loads(r["tags"]),
             metadata=json.loads(r["metadata"]),
-            embedding=json.loads(r["embedding"]) if r["embedding"] else None,
+            embedding=_decode_vec(r["embedding"]),
             pinned=bool(r["pinned"]), access_count=r["access_count"],
             created_at=r["created_at"], last_accessed=r["last_accessed"],
         )
@@ -72,7 +85,7 @@ class SQLiteStorage(StorageBackend):
                 "INSERT OR REPLACE INTO memories VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (item.id, item.namespace, item.layer.value, item.content, item.importance,
                  item.session_id, json.dumps(item.tags), json.dumps(item.metadata),
-                 json.dumps(item.embedding) if item.embedding else None,
+                 array("f", item.embedding).tobytes() if item.embedding else None,
                  int(item.pinned), item.access_count, item.created_at, item.last_accessed))
 
     def get(self, item_id):

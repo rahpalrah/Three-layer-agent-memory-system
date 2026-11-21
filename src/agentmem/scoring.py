@@ -10,9 +10,9 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from typing import Callable, Iterable, Optional, Protocol, Sequence
+from typing import Callable, Dict, Iterable, Optional, Protocol, Sequence
 
-from .embeddings import cosine
+from .embeddings import cosine, cosine_many
 from .types import MemoryItem
 
 
@@ -87,7 +87,9 @@ class RetrievalWeights:
     recency_half_life_hours: float = 72.0
     importance_half_life_days: float = 30.0   # importance decays unless reinforced
     access_boost: float = 0.03                # per past retrieval, capped
-    min_relevance: float = 0.0                # hard filter when a query is given
+    min_relevance: float = 0.0                # hard filter on raw cosine when a query is given
+    relevance_gate: float = 0.75              # 0 = additive (Generative Agents); 1 = recency/importance
+                                              # only count in proportion to relevance
 
 
 def recency_score(item: MemoryItem, now: float, half_life_hours: float) -> float:
@@ -106,19 +108,37 @@ def effective_importance(item: MemoryItem, now: float, w: RetrievalWeights) -> f
 
 
 def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
-         weights: RetrievalWeights, now: Optional[float] = None):
+         weights: RetrievalWeights, now: Optional[float] = None,
+         layer_weights: Optional[Dict[object, RetrievalWeights]] = None):
+    """Score items for a query.
+
+    Relevance is min-max normalised across the candidate set (so the score
+    scale doesn't depend on the embedder), and recency/importance are scaled by
+    ``relevance_gate`` so an important-but-unrelated memory can't outrank a
+    relevant one. With no query, ranking is by recency and importance only.
+    ``layer_weights`` lets each layer use its own decay settings.
+    """
     from .types import ScoredMemory
     now = now or time.time()
-    total = weights.relevance + weights.recency + weights.importance or 1.0
+    items = list(items)
+    raw = cosine_many(query_vec, [i.embedding for i in items]) if query_vec is not None else [0.0] * len(items)
+    raw = [max(r, 0.0) for r in raw]
+    hi = max(raw, default=0.0)
     out = []
-    for it in items:
-        rel = cosine(query_vec, it.embedding) if (query_vec is not None and it.embedding) else 0.0
-        rel = max(rel, 0.0)
-        if query_vec is not None and rel < weights.min_relevance:
+    for it, rel in zip(items, raw):
+        w = (layer_weights or {}).get(it.layer, weights)
+        if query_vec is not None and rel < w.min_relevance:
             continue
-        rec = recency_score(it, now, weights.recency_half_life_hours)
-        imp = effective_importance(it, now, weights)
-        score = (weights.relevance * rel + weights.recency * rec + weights.importance * imp) / total
+        rec = recency_score(it, now, w.recency_half_life_hours)
+        imp = effective_importance(it, now, w)
+        if query_vec is not None:
+            rel_n = rel / hi if hi > 0 else 0.0
+            gate = (1 - w.relevance_gate) + w.relevance_gate * rel_n
+            total = (w.relevance + w.recency + w.importance) or 1.0
+            score = (w.relevance * rel_n + gate * (w.recency * rec + w.importance * imp)) / total
+        else:
+            total = (w.recency + w.importance) or 1.0
+            score = (w.recency * rec + w.importance * imp) / total
         out.append(ScoredMemory(it, score, rel, rec, imp))
     out.sort(key=lambda s: s.score, reverse=True)
     return out
