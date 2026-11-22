@@ -1,0 +1,58 @@
+[
+  {
+    "memories": 1000,
+    "ingest_s": 0.17,
+    "db_mb": 4.2,
+    "full_scan_ms_p50": 64.5,
+    "numpy_cold_build_ms": 86,
+    "numpy_ms_p50": 7.3,
+    "numpy_ms_p95": 9.2,
+    "numpy_top10_agreement": 100.0,
+    "faiss_cold_build_ms": 241,
+    "faiss_ms_p50": 8.6,
+    "faiss_ms_p95": 10.8,
+    "faiss_top10_agreement": 100.0
+  },
+  {
+    "memories": 10000,
+    "ingest_s": 2.2,
+    "db_mb": 42.0,
+    "full_scan_ms_p50": 727.1,
+    "numpy_cold_build_ms": 782,
+    "numpy_ms_p50": 12.3,
+    "numpy_ms_p95": 16.3,
+    "numpy_top10_agreement": 100.0,
+    "faiss_cold_build_ms": 1568,
+    "faiss_ms_p50": 11.2,
+    "faiss_ms_p95": 12.8,
+    "faiss_top10_agreement": 100.0
+  },
+  {
+    "memories": 50000,
+    "ingest_s": 11.19,
+    "db_mb": 210.0,
+    "full_scan_ms_p50": 3747.4,
+    "numpy_cold_build_ms": 4000,
+    "numpy_ms_p50": 20.3,
+    "numpy_ms_p95": 24.1,
+    "numpy_top10_agreement": 100.0,
+    "faiss_cold_build_ms": 7821,
+    "faiss_ms_p50": 17.0,
+    "faiss_ms_p95": 27.4,
+    "faiss_top10_agreement": 100.0
+  },
+  {
+    "memories": 100000,
+    "ingest_s": 20.83,
+    "db_mb": 420.0,
+    "full_scan_ms_p50": 8734.3,
+    "numpy_cold_build_ms": 9776,
+    "numpy_ms_p50": 35.5,
+    "numpy_ms_p95": 44.9,
+    "numpy_top10_agreement": 94.0,
+    "faiss_cold_build_ms": 22698,
+    "faiss_ms_p50": 35.7,
+    "faiss_ms_p95": 50.7,
+    "faiss_top10_agreement": 94.0
+  }
+]

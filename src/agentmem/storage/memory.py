@@ -21,10 +21,12 @@ class InMemoryStorage(StorageBackend):
         self._items: Dict[str, MemoryItem] = {}
         self._sessions: Dict[str, Session] = {}
         self._lock = threading.RLock()
+        self._version = 0
 
     def put(self, item: MemoryItem) -> None:
         with self._lock:
             self._items[item.id] = _clone(item)
+            self._version += 1
 
     def get(self, item_id: str) -> Optional[MemoryItem]:
         with self._lock:
@@ -33,6 +35,7 @@ class InMemoryStorage(StorageBackend):
 
     def delete(self, item_id: str) -> bool:
         with self._lock:
+            self._version += 1
             return self._items.pop(item_id, None) is not None
 
     def list(self, namespace, layer=None, session_id=None, limit=None) -> List[MemoryItem]:
@@ -43,6 +46,19 @@ class InMemoryStorage(StorageBackend):
                    and (session_id is None or i.session_id == session_id)]
         out.sort(key=lambda i: i.created_at, reverse=True)
         return out[:limit] if limit else out
+
+    def put_many(self, items) -> None:
+        with self._lock:
+            for it in items:
+                self._items[it.id] = _clone(it)
+            self._version += 1
+
+    def change_token(self):
+        return self._version
+
+    def get_many(self, item_ids):
+        with self._lock:
+            return [_clone(self._items[i]) for i in item_ids if i in self._items]
 
     def count(self, namespace, layer=None) -> int:
         return len(self.list(namespace, layer))

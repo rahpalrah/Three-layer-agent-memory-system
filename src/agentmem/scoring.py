@@ -114,12 +114,13 @@ def effective_importance(item: MemoryItem, now: float, w: RetrievalWeights) -> f
     return max(0.0, min(1.0, item.importance * (0.5 + 0.5 * decay) + boost))
 
 
-def minmax(vals):
+def minmax(vals, lo=None):
     """Min-max scale to [0, 1]. Embedding similarities and RRF scores live in narrow
-    bands; dividing by the max alone would leave every candidate near 1."""
+    bands; dividing by the max alone would leave every candidate near 1. ``lo`` fixes
+    the floor (used for stage-1 candidates, whose global minimum is 0)."""
     if not vals:
         return []
-    lo, hi = min(vals), max(vals)
+    lo, hi = (min(vals) if lo is None else lo), max(vals)
     if hi <= 0:
         return [0.0] * len(vals)
     if hi - lo < 1e-12:
@@ -130,7 +131,8 @@ def minmax(vals):
 def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
          weights: RetrievalWeights, now: Optional[float] = None,
          layer_weights: Optional[Dict[object, RetrievalWeights]] = None,
-         query_text: Optional[str] = None):
+         query_text: Optional[str] = None,
+         precomputed: Optional[Dict[str, tuple]] = None):
     """Score items for a query.
 
     Relevance is min-max normalised across the candidate set (so the score
@@ -140,19 +142,31 @@ def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
     ``layer_weights`` lets each layer use its own decay settings. When
     ``query_text`` is given, relevance is a hybrid of embedding similarity and
     BM25 keyword score (each normalised), weighted by ``weights.lexical``.
+    ``precomputed`` maps item id -> (vector similarity, BM25) from a stage-1 index
+    (global BM25 statistics); items missing from it are scored here.
     """
     from .types import ScoredMemory
     now = now or time.time()
     items = list(items)
     if query_vec is not None and not any(query_vec):
         query_vec = None  # query had no content words (e.g. "who am I?"): rank by recency/importance
-    raw = cosine_many(query_vec, [i.embedding for i in items]) if query_vec is not None else [0.0] * len(items)
+    pre = precomputed or {}
+    if query_vec is None:
+        raw = [0.0] * len(items)
+    elif pre and all(i.id in pre for i in items):
+        raw = [pre[i.id][0] for i in items]
+    else:
+        raw = cosine_many(query_vec, [i.embedding for i in items])
     raw = [max(r, 0.0) for r in raw]
-    dense_n = minmax(raw)
+    floor = 0.0 if pre else None   # candidates are a slice of a larger corpus whose minimum is 0
+    dense_n = minmax(raw, floor)
     lam = weights.lexical if (query_text and query_vec is not None) else 0.0
     if lam > 0:
-        from .lexical import bm25_scores
-        lex = bm25_scores(query_text, items)
+        if pre and all(i.id in pre for i in items):
+            lex = [pre[i.id][1] for i in items]
+        else:
+            from .lexical import bm25_scores
+            lex = bm25_scores(query_text, items)
         lhi = max(lex, default=0.0)
         if lhi > 0 and weights.fusion == "rrf":
             def ranks(vals):
@@ -165,10 +179,10 @@ def rank(items: Iterable[MemoryItem], query_vec: Optional[Sequence[float]],
             mixed = [(1 - lam) / (weights.rrf_k + a) + (lam / (weights.rrf_k + b) if l > 0 else 0.0)
                      for a, b, l in zip(dr, lr, lex)]
         elif lhi > 0:
-            mixed = [(1 - lam) * d + lam * l for d, l in zip(dense_n, minmax(lex))]
+            mixed = [(1 - lam) * d + lam * l for d, l in zip(dense_n, minmax(lex, floor))]
         else:
             mixed = dense_n
-        dense_n = minmax(mixed)
+        dense_n = minmax(mixed, floor)
     out = []
     for it, rel, rel_n in zip(items, raw, dense_n):
         w = (layer_weights or {}).get(it.layer, weights)

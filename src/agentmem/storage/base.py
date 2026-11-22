@@ -37,6 +37,20 @@ class StorageBackend(ABC):
     @abstractmethod
     def list_sessions(self, namespace: str, limit: Optional[int] = None) -> List[Session]: ...
 
+    def put_many(self, items) -> None:
+        """Bulk upsert. Override for efficiency (e.g. one transaction)."""
+        for it in items:
+            self.put(it)
+
+    def get_many(self, item_ids) -> List[MemoryItem]:
+        """Fetch several items (missing ids are skipped). Override for efficiency."""
+        return [i for i in (self.get(x) for x in item_ids) if i is not None]
+
+    def change_token(self):
+        """Opaque value that changes whenever the stored data may have changed
+        (including writes by other processes). Indexes use it to stay fresh."""
+        return None
+
     def clear(self, namespace: str) -> None:
         for it in self.list(namespace):
             self.delete(it.id)

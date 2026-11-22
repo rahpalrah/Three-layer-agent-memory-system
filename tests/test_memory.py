@@ -278,3 +278,12 @@ def test_hybrid_search_discounts_ubiquitous_words():
     target = mem.remember("Caroline: I adopted a puppy named Biscuit")
     hits = mem.recall("Caroline puppy", k=1, reinforce=False)
     assert hits[0].item.id == target.id
+
+
+def test_storage_backend_accepted_positionally(tmp_path):
+    st = SQLiteStorage(tmp_path / "m.db")
+    m = AgentMemory(st)
+    m.remember("hello")
+    assert st.count("default") == 1
+    with pytest.raises(TypeError):
+        AgentMemory(123)

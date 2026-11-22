@@ -1,0 +1,46 @@
+{
+  "llm": "none",
+  "k": 10,
+  "questions": 1388,
+  "summary": {
+    "recency (chat window)": {
+      "coverage": 17.40513620369376
+    },
+    "BM25": {
+      "coverage": 59.985511916559716
+    },
+    "agentmem (minilm hybrid)": {
+      "coverage": 63.15493916160357
+    },
+    "agentmem (+ cross-encoder rerank)": {
+      "coverage": 66.85472624911426
+    }
+  },
+  "by_category": {
+    "recency (chat window)": {
+      "temporal": 26.567739771965122,
+      "single-hop": 16.18424550788936,
+      "multi-hop": 11.435959749218014,
+      "open-domain": 15.374069055441469
+    },
+    "BM25": {
+      "temporal": 61.068913480885314,
+      "single-hop": 70.5556199605181,
+      "multi-hop": 38.32642096487797,
+      "open-domain": 23.329287720897774
+    },
+    "agentmem (minilm hybrid)": {
+      "temporal": 59.96478873239437,
+      "single-hop": 74.92225987562449,
+      "multi-hop": 43.41403351572581,
+      "open-domain": 24.222708593588262
+    },
+    "agentmem (+ cross-encoder rerank)": {
+      "temporal": 61.117957746478865,
+      "single-hop": 79.52726630456088,
+      "multi-hop": 47.786083097689506,
+      "open-domain": 26.202613717250266
+    }
+  },
+  "examples": []
+}

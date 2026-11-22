@@ -129,19 +129,21 @@ def ingest_agentmem(sample, embedder):
         clock["t"] = start
         with mem.session(f"{sample['sample_id']}-s{n}"):
             for t in turns:
-                mem.add(turn_text(t), role=t["speaker"], metadata={"dia_id": t["dia_id"]})
+                mem.add(turn_text(t), role=t["speaker"], metadata={"dia_id": t["dia_id"], "date": date})
                 clock["t"] += 30
         last = clock["t"]
     clock["t"] = last + 86400  # questions are asked the day after the last session
     return mem
 
 
-def agentmem_retriever(mem, weights: RetrievalWeights, expand: int = 0):
+def agentmem_retriever(mem, weights: RetrievalWeights, expand: int = 0, reranker=None,
+                       rerank_depth: int = 30, rerank_weight: float = 0.7):
     ep_dia = {e.id: e.metadata.get("dia_id") for e in mem.storage.list(mem.namespace, Layer.EPISODIC)}
     sem_base = mem.semantic.weights
 
     def retrieve(question, k):
         ep_w, sem_w = mem.episodic.weights, mem.semantic.weights
+        mem.reranker, mem.rerank_depth, mem.rerank_weight = reranker, rerank_depth, rerank_weight
         mem.episodic.weights = weights
         mem.semantic.weights = dataclasses.replace(sem_base, lexical=weights.lexical, fusion=weights.fusion,
                                                    recency=sem_base.recency * (weights.recency > 0),
@@ -150,6 +152,7 @@ def agentmem_retriever(mem, weights: RetrievalWeights, expand: int = 0):
             hits = mem.recall(question, k=k, reinforce=False, expand=expand)
         finally:
             mem.episodic.weights, mem.semantic.weights = ep_w, sem_w
+            mem.reranker = None
         out = []
         for h in hits:
             if h.item.layer == Layer.SEMANTIC:  # facts point back to their source turns
@@ -171,6 +174,7 @@ def configs(embedder_name):
         ("hybrid RRF", W(lexical=0.5, fusion="rrf"), 0),
         ("SHIPPED: hybrid (tuned)", W(lexical=lam), 0),
         ("SHIPPED + neighbours", W(lexical=lam), 1),
+        ("SHIPPED + cross-encoder rerank", W(lexical=lam), 0, "rerank"),
     ]
 
 
@@ -178,12 +182,18 @@ def all_turns(sample):
     return [t for _, _, turns in sessions(sample["conversation"]) for t in turns]
 
 
-def run(data, ks, embedders=("hashing",), include_adversarial=False, seed=0):
+def run(data, ks, embedders=("hashing",), include_adversarial=False, seed=0, rerank=False):
     rng = random.Random(seed)
     results = defaultdict(lambda: {k: [] for k in ks})
     kept = {"turns": 0, "episodes": 0, "facts": 0}
     t0 = time.perf_counter()
     embs = {name: make_embedder(name) for name in embedders}
+    try:
+        from agentmem.rerank import CrossEncoderReranker
+        reranker = CrossEncoderReranker() if rerank else None
+    except Exception as e:  # noqa: BLE001
+        print(f"reranker unavailable: {e}", file=sys.stderr)
+        reranker = None
     for si, sample in enumerate(data):
         turns = all_turns(sample)
         ids = [t["dia_id"] for t in turns]
@@ -199,8 +209,13 @@ def run(data, ks, embedders=("hashing",), include_adversarial=False, seed=0):
                 kept["turns"] += len(turns)
                 kept["episodes"] += mem.episodic.count()
                 kept["facts"] += mem.semantic.count()
-            for label, w, expand in configs(name):
-                retrievers[f"agentmem [{name}] {label}"] = agentmem_retriever(mem, w, expand)
+            for label, w, expand, *extra in configs(name):
+                if extra and extra[0] == "rerank":
+                    if reranker is None:
+                        continue
+                    retrievers[f"agentmem [{name}] {label}"] = agentmem_retriever(mem, w, expand, reranker, 30, 0.7)
+                else:
+                    retrievers[f"agentmem [{name}] {label}"] = agentmem_retriever(mem, w, expand)
         print(f"  conversation {si + 1}/{len(data)} ingested ({time.perf_counter() - t0:.0f}s)", file=sys.stderr)
         for qa in sample["qa"]:
             cat = qa["category"]
@@ -253,6 +268,7 @@ def main(argv=None):
     ap.add_argument("--include-adversarial", action="store_true")
     ap.add_argument("--limit", type=int, help="only the first N conversations")
     ap.add_argument("--conversations", help="1-based subset, e.g. 2-10 (held-out test split)")
+    ap.add_argument("--rerank", action="store_true", help="also evaluate the cross-encoder reranker")
     ap.add_argument("--embedders", nargs="+", default=["hashing"], choices=["hashing", "minilm"],
                     help="minilm = all-MiniLM-L6-v2 via ONNX (pip install agentmem[onnx])")
     ap.add_argument("--out", default=str(HERE / "results" / "locomo.json"))
@@ -261,7 +277,7 @@ def main(argv=None):
     if a.conversations:
         data = [data[i - 1] for i in parse_range(a.conversations)]
     data = data[: a.limit]
-    results, kept, secs = run(data, a.k, tuple(a.embedders), a.include_adversarial)
+    results, kept, secs = run(data, a.k, tuple(a.embedders), a.include_adversarial, rerank=a.rerank)
     text, js = report(results, kept, secs, a.k)
     print(text)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)

@@ -61,6 +61,7 @@ class SQLiteStorage(StorageBackend):
         self._conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
+        self._version = 0  # writes through this connection
         with self._lock, self._conn:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=NORMAL")  # durable with WAL, much faster
@@ -87,6 +88,15 @@ class SQLiteStorage(StorageBackend):
                  item.session_id, json.dumps(item.tags), json.dumps(item.metadata),
                  array("f", item.embedding).tobytes() if item.embedding else None,
                  int(item.pinned), item.access_count, item.created_at, item.last_accessed))
+            self._version += 1
+
+    def put_many(self, items) -> None:
+        rows = [(i.id, i.namespace, i.layer.value, i.content, i.importance, i.session_id, json.dumps(i.tags),
+                 json.dumps(i.metadata), array("f", i.embedding).tobytes() if i.embedding else None,
+                 int(i.pinned), i.access_count, i.created_at, i.last_accessed) for i in items]
+        with self._lock, self._conn:
+            self._conn.executemany("INSERT OR REPLACE INTO memories VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+            self._version += 1
 
     def get(self, item_id):
         with self._lock:
@@ -95,6 +105,7 @@ class SQLiteStorage(StorageBackend):
 
     def delete(self, item_id) -> bool:
         with self._lock, self._conn:
+            self._version += 1
             return self._conn.execute("DELETE FROM memories WHERE id=?", (item_id,)).rowcount > 0
 
     def list(self, namespace, layer=None, session_id=None, limit=None) -> List[MemoryItem]:
@@ -109,6 +120,21 @@ class SQLiteStorage(StorageBackend):
         with self._lock:
             return [self._row(r) for r in self._conn.execute(q, args).fetchall()]
 
+    def change_token(self):
+        # data_version changes when *other* connections/processes commit
+        with self._lock:
+            return (self._version, self._conn.execute("PRAGMA data_version").fetchone()[0])
+
+    def get_many(self, item_ids):
+        ids = list(item_ids)
+        out = []
+        with self._lock:
+            for i in range(0, len(ids), 500):
+                chunk = ids[i:i + 500]
+                q = f"SELECT * FROM memories WHERE id IN ({','.join('?' * len(chunk))})"
+                out += [self._row(r) for r in self._conn.execute(q, chunk).fetchall()]
+        return out
+
     def count(self, namespace, layer=None) -> int:
         q, args = "SELECT COUNT(*) FROM memories WHERE namespace=?", [namespace]
         if layer is not None:
@@ -118,6 +144,7 @@ class SQLiteStorage(StorageBackend):
 
     def clear(self, namespace) -> None:
         with self._lock, self._conn:
+            self._version += 1
             self._conn.execute("DELETE FROM memories WHERE namespace=?", (namespace,))
             self._conn.execute("DELETE FROM sessions WHERE namespace=?", (namespace,))
 

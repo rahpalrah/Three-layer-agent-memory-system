@@ -29,7 +29,8 @@ A zero-dependency Python SDK that gives an agent **long-term memory** that persi
 pip install -e .                 # core, no dependencies
 pip install -e ".[anthropic]"    # + Claude integration
 pip install -e ".[fast]"         # + numpy-accelerated similarity search
-pip install -e ".[onnx]"         # + local semantic embeddings (recommended)
+pip install -e ".[onnx]"         # + local semantic embeddings and cross-encoder reranker (recommended)
+pip install -e ".[faiss]"        # + FAISS HNSW approximate-nearest-neighbour index
 ```
 
 ## Quickstart
@@ -136,7 +137,15 @@ agentmem --db memory.db --ns user-42 export dump.json
 
 ## Retrieval
 
-`recall()` ranks every candidate from all layers together:
+Retrieval follows the standard production pattern: **index → hybrid ranker → cross-encoder**.
+
+| Stage | What it does | Configure |
+|---|---|---|
+| 1. Candidate index | Vector top-N ∪ BM25 top-N from an inverted index. It stays in sync with writes and rebuilds itself when another process changes the database | `index="auto"\|"numpy"\|"faiss"\|None`, `candidates=200` |
+| 2. Hybrid ranker | Relevance-gated recency and importance | `RetrievalWeights(...)` |
+| 3. Cross-encoder rerank (optional) | Re-scores the top `rerank_depth` with ms-marco-MiniLM-L-6-v2 | `reranker=CrossEncoderReranker()`, `rerank_depth=30`, `rerank_weight=0.7` |
+
+Stage 2 ranks with:
 
 ```
 relevance = minmax( (1−λ)·minmax(vector similarity) + λ·minmax(BM25) )     # hybrid search
@@ -147,14 +156,25 @@ score     = w_rel·relevance + relevance·(w_rec·recency + w_imp·importance)  
 - **Fusion:** `fusion="rrf"` switches to reciprocal rank fusion.
 - **Neighbours:** `recall(..., expand=1)` also returns the turns next to each hit (sentence-window retrieval).
 - **Decay:** each layer has its own. Semantic facts fade over about a year, episodes over about a month.
+- **Bulk ingestion:** `remember_many(texts)` embeds in batches and writes in one transaction.
+
+```python
+from agentmem import AgentMemory
+from agentmem.rerank import CrossEncoderReranker
+
+mem = AgentMemory("memory.db", embedder="minilm", index="faiss",     # pip install "agentmem[onnx,faiss]"
+                  reranker=CrossEncoderReranker())
+```
 
 ## Testing
 
 ```bash
-pip install -e ".[dev]" && pytest               # 24 unit tests
-python tests/e2e/run_e2e.py                     # 15 end-to-end system scenarios
+pip install -e ".[dev]" && pytest               # 31 unit tests
+python tests/e2e/run_e2e.py                     # 18 end-to-end system scenarios
 python examples/support_desk.py                 # business use-case scorecard
-python benchmarks/tune.py                       # tune retrieval on the LoCoMo dev split
+python benchmarks/tune.py [--rerank]            # tune retrieval / reranker on the LoCoMo dev split
+python benchmarks/scale.py                      # latency at 1k-100k memories
+python benchmarks/locomo_qa.py --llm ollama:llama3.2 --judge   # answer accuracy (F1, LLM judge)
 python benchmarks/locomo.py --conversations 2-10 --embedders hashing minilm   # held-out test
 ```
 
@@ -177,6 +197,7 @@ CI runs both suites on Python 3.9–3.13, with and without the optional extras.
 
 ## Performance and limits
 
-On the end-to-end machine, 5,000 episodes take about 1.4 s to write, and `recall` takes about 350 ms per query with `[fast]`. Recall does an exhaustive scan of the namespace, which is fine up to about 10,000 memories per namespace. Beyond that, implement a `StorageBackend` on a vector index (pgvector, Qdrant, ...). Retrieval is hybrid: BM25 keywords plus embeddings (`RetrievalWeights.lexical`). The default `HashingEmbedder` matches on keywords with light stemming. Plug in a real embedding model for semantic recall (car ≈ vehicle).
-
-The examples are in `examples/`: `quickstart.py` (run it twice), `claude_chat.py` and `custom_backend.py`.
+See `benchmarks/results/scale.json`:
+- **Latency:** with the stage-1 index, `recall` takes about 7 ms at 1,000 memories and about 36 ms at 100,000 (p50, CPU). A full scan takes 8.7 s at 100,000.
+- **Cold start:** the index is built in memory once per process, taking about 1 s per 10,000 memories.
+- **Beyond a single process:** for millions of memories, or several application servers sharing one index, implement `StorageBackend` on a vector database (pgvector, Qdrant, ...).

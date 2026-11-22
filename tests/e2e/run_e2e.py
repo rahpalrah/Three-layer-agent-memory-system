@@ -428,6 +428,89 @@ def s15_semantic_embeddings_minilm(d):
     return "paraphrase recall without shared keywords; change-of-mind with semantic dedup"
 
 
+@scenario
+def s16_index_at_scale(d):
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        return "SKIPPED (pip install agentmem[fast])"
+    from agentmem import AgentMemory, SQLiteStorage
+    db = d / "m.db"
+    m = AgentMemory(db, auto_consolidate=False)
+    words = "billing kubernetes hiring marketing security travel design legal budget roadmap".split()
+    texts = [f"{words[i % 10]} {words[(i * 7) % 10]} note {i}" for i in range(20000)]
+    m.remember_many(texts)
+    needle = m.remember("The vault passphrase hint is the name of the first office dog", importance=0.9)
+    m.recall("warmup", k=1)
+    t = time.perf_counter()
+    for _ in range(20):
+        hits = m.recall("office dog passphrase", k=5, reinforce=False)
+    ms = (time.perf_counter() - t) / 20 * 1000
+    assert hits[0].item.id == needle.id
+    assert ms < 150, f"indexed recall too slow: {ms:.0f} ms"
+    other = AgentMemory(SQLiteStorage(db), auto_consolidate=False)          # second connection
+    late = other.remember("Quarterly zebra migration report")
+    assert m.recall("zebra migration", k=1)[0].item.id == late.id           # index refreshed
+    m.forget(needle.id)
+    assert all(h.item.id != needle.id for h in m.recall("office dog passphrase", k=5))
+    return f"20k memories: {ms:.0f} ms/recall indexed; cross-connection freshness; deletes"
+
+
+@scenario
+def s17_cross_encoder_rerank(d):
+    try:
+        from agentmem.rerank import CrossEncoderReranker
+        rr = CrossEncoderReranker()
+    except Exception as e:  # noqa: BLE001
+        return f"SKIPPED (reranker model unavailable: {type(e).__name__})"
+    from agentmem import AgentMemory
+    m = AgentMemory(embedder="minilm", reranker=rr, auto_consolidate=False)
+    m.remember("Berlin has a population of 3.5 million registered inhabitants.")
+    m.remember("How many people visit the Berlin museum each year is unknown.")
+    m.remember("People in Berlin like to live near parks.")
+    top = m.recall("How many people live in Berlin?", k=1)[0].item.content
+    assert top.startswith("Berlin has a population"), top
+    return "cross-encoder puts the answering passage first"
+
+
+@scenario
+def s18_qa_harness_with_mock_llm(d):
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        return "SKIPPED (pip install agentmem[onnx])"
+    import http.server
+    root = Path(__file__).resolve().parents[2]
+    data = root / "benchmarks" / "data" / "locomo10.json"
+    if not data.exists():
+        return "SKIPPED (LoCoMo not downloaded)"
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            sysmsg = body["messages"][0]["content"]
+            text = "CORRECT" if sysmsg.startswith("You grade") else "unknown"
+            out = json.dumps({"message": {"role": "assistant", "content": text}}).encode()
+            self.send_response(200); self.send_header("Content-Length", str(len(out))); self.end_headers()
+            self.wfile.write(out)
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    env = dict(os.environ, OLLAMA_HOST=f"http://127.0.0.1:{srv.server_port}")
+    out = d / "qa.json"
+    p = subprocess.run([PY, str(root / "benchmarks" / "locomo_qa.py"), "--llm", "ollama:mock", "--judge",
+                        "--conversations", "2", "--limit-questions", "5", "--no-rerank", "--out", str(out)],
+                       capture_output=True, text=True, env=env, timeout=600)
+    srv.shutdown()
+    assert p.returncode == 0, p.stderr[-2000:]
+    r = json.loads(out.read_text())
+    s = r["summary"]["agentmem (minilm hybrid)"]
+    assert s["f1"] == 0.0 and s["j"] == 100.0 and 0 < s["coverage"] <= 100, s  # mock says "unknown"/"CORRECT"
+    return "LLM answer + judge path runs end to end (mock Ollama); metrics computed"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workdir")

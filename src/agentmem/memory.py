@@ -31,19 +31,44 @@ class AgentMemory:
     ``namespace`` isolates tenants (one per user, agent or user+agent pair).
     """
 
-    def __init__(self, path: Optional[Union[str, Path]] = None, *, namespace: str = "default",
+    def __init__(self, path: Union[str, Path, StorageBackend, None] = None, *, namespace: str = "default",
                  storage: Optional[StorageBackend] = None, embedder: Union[Embedder, str, None] = None,
                  scorer: Optional[ImportanceScorer] = None, extractor: Optional[FactExtractor] = None,
                  working_capacity: int = 20, working_token_budget: Optional[int] = 4000,
                  discard_below: float = 0.1, auto_consolidate: bool = True,
                  weights: Optional[RetrievalWeights] = None,
-                 clock: Callable[[], float] = time.time) -> None:
+                 clock: Callable[[], float] = time.time,
+                 index: Optional[str] = "auto", candidates: int = 200,
+                 reranker=None, rerank_depth: int = 30, rerank_weight: float = 0.7) -> None:
         """``clock`` returns "now" as a UNIX timestamp; inject one to replay
         historical conversations or to simulate the passage of time in tests."""
         self.clock = clock
+        if isinstance(path, StorageBackend):  # AgentMemory(SQLiteStorage(...)) is accepted too
+            if storage is not None:
+                raise ValueError("pass a storage backend either positionally or as storage=, not both")
+            path, storage = None, path
+        elif path is not None and not isinstance(path, (str, Path)):
+            raise TypeError(f"path must be a str/Path or a StorageBackend, not {type(path).__name__}")
         if storage is None:
             storage = SQLiteStorage(path) if path else InMemoryStorage()
+        # stage-1 index: "auto" (numpy if installed), "numpy", "faiss" (HNSW ANN) or None (full scan)
+        if index == "auto":
+            try:
+                import numpy  # noqa: F401
+                index = "numpy"
+            except ImportError:
+                index = None
+        self.index = None
+        self.candidates = candidates
+        if index:
+            from .index import IndexedStorage, MemoryIndex
+            self.index = MemoryIndex(namespace, backend=index)
+            storage = IndexedStorage(storage, self.index)
         self.storage = storage
+        # stage-3 reranking (cross-encoder): see agentmem.rerank
+        self.reranker = reranker
+        self.rerank_depth = rerank_depth
+        self.rerank_weight = rerank_weight
         self.namespace = namespace
         if embedder == "minilm":  # recommended: semantic + hybrid search, local and free
             from .integrations.onnx import MiniLMEmbedder
@@ -165,6 +190,21 @@ class AgentMemory:
                           session_id=self.current_session.id if self.current_session else None)
         return self.episodic.record(item)
 
+    def remember_many(self, contents: List[str], *, importance: Union[float, List[float]] = 0.5,
+                      metadata: Optional[List[Dict[str, Any]]] = None) -> List[MemoryItem]:
+        """Bulk-ingest episodes (logs, transcripts, imports): batched embedding, one write."""
+        embed_many = getattr(self.embedder, "embed_many", None)
+        vecs = embed_many(contents) if embed_many else [self.embedder.embed(c) for c in contents]
+        imps = importance if isinstance(importance, list) else [importance] * len(contents)
+        now = self.clock()
+        sid = self.current_session.id if self.current_session else None
+        items = [MemoryItem(content=c, importance=imp, namespace=self.namespace, layer=Layer.EPISODIC,
+                            embedding=v, session_id=sid, created_at=now, last_accessed=now,
+                            metadata=dict((metadata or [{}] * len(contents))[n]))
+                 for n, (c, v, imp) in enumerate(zip(contents, vecs, imps))]
+        self.storage.put_many(items)
+        return items
+
     def learn(self, fact: str, *, importance: float = 0.7, key: Optional[str] = None,
               tags: Optional[List[str]] = None, pinned: bool = False) -> MemoryItem:
         """Write a fact straight into semantic memory."""
@@ -190,19 +230,30 @@ class AgentMemory:
         """
         from .scoring import rank
         layers = layers or [Layer.WORKING, Layer.EPISODIC, Layer.SEMANTIC]
+        qv = self.embedder.embed(query) if query else None
+        stored = [l for l in layers if l in (Layer.EPISODIC, Layer.SEMANTIC)]
         items: List[MemoryItem] = []
-        if Layer.SEMANTIC in layers:
-            items += self.semantic.facts()
-        if Layer.EPISODIC in layers:
-            items += self.storage.list(self.namespace, Layer.EPISODIC)
+        pre = None
+        if stored and self.index is not None and qv is not None and any(qv):
+            # two-stage: index proposes candidates, full ranker scores only those
+            self.storage.ensure_fresh()
+            pre = self.index.candidates(qv, query, n=max(self.candidates, k), layers=stored)
+            items = [i for i in self.storage.get_many(list(pre)) if "superseded_by" not in i.metadata]
+        else:
+            if Layer.SEMANTIC in layers:
+                items += self.semantic.facts()
+            if Layer.EPISODIC in layers:
+                items += self.storage.list(self.namespace, Layer.EPISODIC)
         if Layer.WORKING in layers:
             items += self.working.items()
         if tags:
             items = [i for i in items if set(tags) & set(i.tags)]
-        qv = self.embedder.embed(query) if query else None
         now = self.clock()
         ranked = rank(items, qv, self.episodic.weights, now=now,
-                      layer_weights={Layer.SEMANTIC: self.semantic.weights}, query_text=query)
+                      layer_weights={Layer.SEMANTIC: self.semantic.weights}, query_text=query,
+                      precomputed=pre)
+        if self.reranker is not None and query and ranked:
+            ranked = self._rerank(query, ranked, now)
         seen, out = set(), []
         for h in ranked:
             key = h.item.content.strip().lower()
@@ -220,6 +271,26 @@ class AgentMemory:
                     h.item.touch(now)
                     self.storage.put(h.item)
         return out
+
+    def _rerank(self, query: str, ranked: List[ScoredMemory], now: float) -> List[ScoredMemory]:
+        """Stage 3: re-score the top ``rerank_depth`` with a cross-encoder and re-rank.
+        relevance := w * minmax(cross-encoder) + (1 - w) * stage-2 relevance."""
+        from .scoring import minmax
+        head, tail = ranked[: self.rerank_depth], ranked[self.rerank_depth:]
+        ce = minmax(list(self.reranker.score(query, [h.item.content for h in head])))
+        stage2 = minmax([h.relevance for h in head])
+        w = self.rerank_weight
+        out = []
+        for h, c, s in zip(head, ce, stage2):
+            rel = w * c + (1 - w) * s
+            wt = self.semantic.weights if h.item.layer == Layer.SEMANTIC else self.episodic.weights
+            total = (wt.relevance + wt.recency + wt.importance) or 1.0
+            gate = (1 - wt.relevance_gate) + wt.relevance_gate * rel
+            score = (wt.relevance * rel + gate * (wt.recency * h.recency + wt.importance * h.importance)) / total
+            out.append(ScoredMemory(h.item, score, rel, h.recency, h.importance))
+        out.sort(key=lambda h: h.score, reverse=True)
+        # keep reranked head strictly above the tail
+        return out + tail
 
     def _expand(self, hits: List[ScoredMemory], k: int, n: int) -> List[ScoredMemory]:
         timelines: Dict[str, List[MemoryItem]] = {}
@@ -257,8 +328,9 @@ class AgentMemory:
         """
         profile = self.semantic.profile(k_profile)
         pids = {f.id for f in profile}
-        facts = [h for h in self.semantic.retrieve(query, k=k_facts + len(pids)) if h.item.id not in pids][:k_facts]
-        eps = self.episodic.retrieve(query, k=k_episodes)
+        facts = [h for h in self.recall(query, k=k_facts + len(pids), layers=[Layer.SEMANTIC])
+                 if h.item.id not in pids][:k_facts]
+        eps = self.recall(query, k=k_episodes, layers=[Layer.EPISODIC])
         lines: List[str] = []
         if profile:
             lines.append("User profile:")
