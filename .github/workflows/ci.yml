@@ -22,8 +22,7 @@ jobs:
           python -m build --outdir dist .
           WHEEL=$(ls dist/*.whl)
           pip install "${WHEEL}[${{ matrix.extras }}]"
-      - name: Unit tests (against installed wheel)
-        run: |
-          mkdir /tmp/t && cp -r tests /tmp/t/ && cd /tmp/t && python -m pytest -q -p no:cacheprovider tests/test_memory.py
+      - name: Unit tests (against the installed wheel, not src/)
+        run: python -m pytest -q -p no:cacheprovider -o pythonpath= tests
       - name: End-to-end system test
         run: cd /tmp && python $GITHUB_WORKSPACE/tests/e2e/run_e2e.py

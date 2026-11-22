@@ -85,10 +85,14 @@ The default `HashingEmbedder` has no dependencies and works on keywords. Use a r
 
 The full report is in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). All of it can be reproduced for free.
 
-| | chat history | BM25 | **agentmem** |
+| Public benchmark (held out; settings tuned on one LoCoMo conversation only) | chat history | BM25 | **agentmem + reranker** |
 |---|---|---|---|
-| LoCoMo public benchmark, held-out conversations, evidence recall@10 | 1.6% | 57.8% | **63.3%** |
+| LoCoMo evidence recall@10 (1,386 questions) | 1.6% | 57.8% | **68.9%** |
+| LongMemEval-S session-any@10 (470 questions, ~494-turn histories) | 11.5% | 96.6% | **98.7%** |
+| LongMemEval-S session-all@10: every answer session found | 2.6% | 84.7% | **88.7%** |
 | Coffee-shop support desk: answer in the model's context after 8 weeks | 27% | — | **100%** |
+
+On LongMemEval the gains over BM25 are statistically significant (paired bootstrap, 95% CI); the report lists the significance of every comparison and the cases that still fail.
 
 ## Recommended setup
 
@@ -166,13 +170,22 @@ mem = AgentMemory("memory.db", embedder="minilm", index="faiss",     # pip insta
                   reranker=CrossEncoderReranker())
 ```
 
+### Downloading LongMemEval
+
+```bash
+mkdir -p benchmarks/data/longmemeval && cd benchmarks/data/longmemeval
+curl -L -O https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json   # 277 MB
+```
+
 ## Testing
 
 ```bash
-pip install -e ".[dev]" && pytest               # 31 unit tests
+pip install -e ".[dev]" && pytest               # 33 unit tests
 python tests/e2e/run_e2e.py                     # 18 end-to-end system scenarios
 python examples/support_desk.py                 # business use-case scorecard
 python benchmarks/tune.py [--rerank]            # tune retrieval / reranker on the LoCoMo dev split
+python benchmarks/longmemeval.py --rerank       # LongMemEval retrieval (download the dataset first, see below)
+python benchmarks/longmemeval_qa.py --llm llamacpp:model.gguf --judge   # LongMemEval answer accuracy
 python benchmarks/scale.py                      # latency at 1k-100k memories
 python benchmarks/locomo_qa.py --llm ollama:llama3.2 --judge   # answer accuracy (F1, LLM judge)
 python benchmarks/locomo.py --conversations 2-10 --embedders hashing minilm   # held-out test
