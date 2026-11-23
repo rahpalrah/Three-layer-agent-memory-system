@@ -189,6 +189,29 @@ mkdir -p benchmarks/data/longmemeval && cd benchmarks/data/longmemeval
 curl -L -O https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json   # 277 MB
 ```
 
+## Independence: what needs nothing else
+
+The core library has **no required dependencies**, no API keys and no model downloads. Verified in a clean environment with only the package installed (no numpy, no ML packages): storage, layers, consolidation, retrieval, persistence and the CLI all work.
+
+| Component | Needs | Notes |
+|---|---|---|
+| Storage, working/episodic/semantic memory, decay, forgetting, consolidation | nothing | pure Python, SQLite from the standard library |
+| Default embedder (`HashingEmbedder`) | nothing | keyword-based |
+| **Self-contained semantic embedder (`SelfEmbedder`)** | nothing | learns word similarity from the memory's own text (PPMI word vectors, seeded random projection). No download, no package |
+| BM25 keyword retrieval, hybrid ranking | nothing | pure Python |
+| Vector index | optional numpy | falls back to exact full scan without it |
+| MiniLM embeddings, cross-encoder reranker | optional `onnxruntime` + model download | higher quality, not required |
+| Claude, OpenAI, Ollama chat | optional API key or local server | only for LLM-based importance scoring, fact extraction and agents |
+
+```python
+from agentmem import AgentMemory, SelfEmbedder
+
+emb = SelfEmbedder(dim=256).fit(all_text_you_have)   # unlabelled text from the memory itself
+mem = AgentMemory("memory.db", embedder=emb)
+```
+
+Measured on LoCoMo held-out conversations 2-10 (`benchmarks/locomo.py --embedders self`): the self-contained embedder reaches 58.3% evidence recall@10, against 57.5% for the built-in keyword embedder, 57.8% for BM25 and 63.3% for MiniLM. It learns from each conversation's own text, with no labels.
+
 ## Licences and dataset restrictions
 
 The code is MIT-licensed (`LICENSE`). Benchmark datasets are **not** included and carry their own licences; see [`NOTICE.md`](NOTICE.md).
