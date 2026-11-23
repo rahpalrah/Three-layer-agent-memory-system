@@ -296,3 +296,15 @@ The memory store is no longer the constraint. The harness peak is set by loading
 **5. Licence.** The dataset is **CC BY-NC-SA 4.0: non-commercial use only**, with derivatives under the same licence and attribution required. Results built on it inherit that restriction. The repository stores only aggregate statistics and judgment labels (`benchmarks/results/twcs*.json`, `twcs_judgments.json`, which holds tweet IDs and 0/1 values, never tweet text). A check of every committed result file found no tweet text. `NOTICE.md` and the README state the restriction. The code remains MIT.
 
 **Data-quality findings from the judging.** Some rows marked as customer messages are brand broadcasts or automated replies, for example the PlayStation informational tweets (query 19), and some brand accounts appear as customers. Those rows slightly inflate the pools. Mass @-mention spam also appears (query 9). The benchmark does not filter these out.
+
+## 11. Independent answer accuracy (no language model)
+
+`python benchmarks/locomo_qa.py --llm extractive` answers each LoCoMo question with `ExtractiveReader`, which copies a span from the retrieved memory. It needs no model and no key. Embedder: `SelfEmbedder`, fitted on each conversation's own text. Held-out conversations 2–10, 1,388 questions, k = 10.
+
+| system | answer coverage | F1 |
+|---|---|---|
+| recency (chat window) | 17.4% | 3.1% |
+| BM25 | 60.0% | 6.1% |
+| agentmem (hybrid, self embedder) | 60.9% | 6.0% |
+
+Coverage means the gold answer's words are in the retrieved memory. The extractive reader only reaches F1 6.0% because it often picks the wrong span from the right sentence. That is an honest floor. A language model reader is needed for real answer accuracy, and the same harness takes `--llm ollama:…`, `claude:…` or `openai:…`.

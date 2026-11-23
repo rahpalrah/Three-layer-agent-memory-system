@@ -25,7 +25,16 @@ def main(argv=None) -> int:
     e = sub.add_parser("export"); e.add_argument("out")
     i = sub.add_parser("import"); i.add_argument("src")
     d = sub.add_parser("forget"); d.add_argument("id")
+    sub.add_parser("doctor", help="show which optional features are available")
+    fm = sub.add_parser("fetch-models", help="download and verify the optional MiniLM and reranker weights")
+    fm.add_argument("--minilm", action="store_true", help="semantic embedder (all-MiniLM-L6-v2)")
+    fm.add_argument("--reranker", action="store_true", help="cross-encoder reranker (ms-marco-MiniLM-L-6-v2)")
     args = p.parse_args(argv)
+
+    if args.cmd == "doctor":
+        return _doctor()
+    if args.cmd == "fetch-models":
+        return _fetch_models(args)
 
     mem = AgentMemory(args.db, namespace=args.ns, auto_consolidate=True)
     try:
@@ -64,6 +73,55 @@ def main(argv=None) -> int:
     finally:
         mem.close()
     return 0
+
+
+def _cached(rel: str) -> bool:
+    import os
+    from pathlib import Path
+    root = Path(os.environ.get("AGENTMEM_MODEL_DIR", Path.home() / ".cache" / "agentmem" / "models"))
+    return (root / rel).exists()
+
+
+def _doctor() -> int:
+    import importlib.util
+    def have(mod):
+        return importlib.util.find_spec(mod) is not None
+    rows = [
+        ("core memory layers, SQLite, retrieval, CLI", True, "always available, no dependencies"),
+        ("self-contained semantic embedder (SelfEmbedder)", True, "no downloads"),
+        ("extractive answer reader (ExtractiveReader)", True, "no model"),
+        ("vector index with numpy", have("numpy"), "pip install numpy (optional; exact scan otherwise)"),
+        ("MiniLM embeddings (onnx + model files)",
+         have("onnxruntime") and have("tokenizers") and _cached("all-MiniLM-L6-v2/onnx/model.onnx"),
+         "pip install onnxruntime tokenizers; then agentmem fetch-models --minilm"),
+        ("cross-encoder reranker (onnx + model files)",
+         have("onnxruntime") and have("tokenizers") and _cached("ms-marco-MiniLM-L-6-v2/onnx/model.onnx"),
+         "pip install onnxruntime tokenizers; then agentmem fetch-models --reranker"),
+        ("FAISS index", have("faiss"), "pip install faiss-cpu (optional)"),
+    ]
+    for name, ok, hint in rows:
+        print(f"{'ok  ' if ok else 'off '} {name}" + ("" if ok else f"   [{hint}]"))
+    return 0
+
+
+def _fetch_models(args) -> int:
+    if not (args.minilm or args.reranker):
+        print("choose --minilm and/or --reranker", file=sys.stderr)
+        return 2
+    rc = 0
+    try:
+        if args.minilm:
+            from .integrations.onnx import ensure_model
+            print("fetching all-MiniLM-L6-v2 ...")
+            print("  ->", ensure_model())
+        if args.reranker:
+            from .rerank import ensure_reranker_model
+            print("fetching ms-marco-MiniLM-L-6-v2 ...")
+            print("  ->", ensure_reranker_model())
+    except Exception as e:  # network or checksum failure: say what to do
+        print(f"failed: {e}", file=sys.stderr)
+        rc = 1
+    return rc
 
 
 if __name__ == "__main__":

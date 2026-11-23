@@ -200,7 +200,8 @@ The core library has **no required dependencies**, no API keys and no model down
 | **Self-contained semantic embedder (`SelfEmbedder`)** | nothing | learns word similarity from the memory's own text (PPMI word vectors, seeded random projection). No download, no package |
 | BM25 keyword retrieval, hybrid ranking | nothing | pure Python |
 | Vector index | optional numpy | falls back to exact full scan without it |
-| MiniLM embeddings, cross-encoder reranker | optional `onnxruntime` + model download | higher quality, not required |
+| MiniLM embeddings, cross-encoder reranker | optional `onnxruntime` + `tokenizers`; weights via `agentmem fetch-models` (SHA-256 verified) | higher quality, not required |
+| Extractive answer reader (`ExtractiveReader`) | nothing | copies answers from memory; a weak baseline, F1 6.0% on LoCoMo |
 | Claude, OpenAI, Ollama chat | optional API key or local server | only for LLM-based importance scoring, fact extraction and agents |
 
 ```python
@@ -211,6 +212,13 @@ mem = AgentMemory("memory.db", embedder=emb)
 ```
 
 Measured on LoCoMo held-out conversations 2-10 (`benchmarks/locomo.py --embedders self`): the self-contained embedder reaches 58.3% evidence recall@10, against 57.5% for the built-in keyword embedder, 57.8% for BM25 and 63.3% for MiniLM. It learns from each conversation's own text, with no labels.
+
+Check what is available on your machine:
+
+```bash
+agentmem doctor
+agentmem fetch-models --minilm --reranker     # optional, downloads and verifies the weights once
+```
 
 ## Licences and dataset restrictions
 

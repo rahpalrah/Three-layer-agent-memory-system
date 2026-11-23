@@ -93,7 +93,7 @@ def systems(mem, reranker, turns_by_id, bm25, ids):
     out = {
         "recency (chat window)": lambda q, k: fmt(ids[-k:]),
         "BM25": lambda q, k: fmt([ids[i] for i in bm25.top(q, k)]),
-        "agentmem (minilm hybrid)": agentmem(None),
+        "agentmem (hybrid)": agentmem(None),
     }
     if reranker is not None:
         out["agentmem (+ cross-encoder rerank)"] = agentmem(reranker)
@@ -102,19 +102,27 @@ def systems(mem, reranker, turns_by_id, bm25, ids):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--llm", default="none", help="none | ollama:MODEL | claude:MODEL")
+    ap.add_argument("--llm", default="none",
+                    help="none | extractive (no model) | ollama:MODEL | claude:MODEL | openai:MODEL")
+    ap.add_argument("--embedder", default="self", choices=["self", "hashing", "minilm"],
+                    help="self = learned from each conversation, no downloads (default)")
     ap.add_argument("--judge", action="store_true", help="also grade with LLM-as-judge (J score)")
     ap.add_argument("--k", type=int, default=10)
     ap.add_argument("--conversations", default="2-10")
     ap.add_argument("--limit-questions", type=int, help="per conversation (for quick LLM runs)")
-    ap.add_argument("--no-rerank", action="store_true")
+    ap.add_argument("--rerank", action="store_true", help="add the cross-encoder reranker (needs model files)")
     ap.add_argument("--out", default=str(L.HERE / "results" / "locomo_qa.json"))
     a = ap.parse_args(argv)
-    llm = make_llm(a.llm)
+    extractive = a.llm == "extractive"
+    llm = None if extractive else make_llm(a.llm)
+    reader = None
+    if extractive:
+        from agentmem.reader import ExtractiveReader
+        reader = ExtractiveReader()
     data = [L.load(L.HERE / "data" / "locomo10.json")[i - 1] for i in L.parse_range(a.conversations)]
-    emb = L.make_embedder("minilm")
+    fixed_emb = None if a.embedder == "self" else L.make_embedder(a.embedder)
     reranker = None
-    if not a.no_rerank:
+    if a.rerank:
         from agentmem.rerank import CrossEncoderReranker
         reranker = CrossEncoderReranker()
     res = defaultdict(lambda: defaultdict(list))  # system -> metric -> values
@@ -128,6 +136,11 @@ def main(argv=None):
                 turns_by_id[t["dia_id"]] = {"date": date, "turn": t}
         ids = list(turns_by_id)
         bm25 = L.BM25([L.turn_text(v["turn"]) for v in turns_by_id.values()])
+        if a.embedder == "self":
+            from agentmem.selfembed import SelfEmbedder
+            emb = SelfEmbedder(dim=256).fit(L.turn_text(v["turn"]) for v in turns_by_id.values())
+        else:
+            emb = fixed_emb
         mem = L.ingest_agentmem(sample, emb)
         sys_fns = systems(mem, reranker, turns_by_id, bm25, ids)
         qas = [q for q in sample["qa"] if q["category"] != 5 and "answer" in q][: a.limit_questions]
@@ -139,7 +152,12 @@ def main(argv=None):
                 cov = coverage(text, gold)
                 res[name]["coverage"].append(cov)
                 by_cat[name][L.CATEGORIES[q["category"]]].append(cov)
-                if llm is not None:
+                if reader is not None:
+                    pred = reader.answer(q["question"], ctx)
+                    res[name]["f1"].append(f1(pred, gold))
+                    if len(examples) < 30:
+                        examples.append({"system": name, "question": q["question"], "gold": gold, "pred": pred})
+                elif llm is not None:
                     pred = llm(ANSWER_PROMPT, [{"role": "user", "content": f"Memories:\n{text}\n\nQuestion: {q['question']}"}]).strip()
                     res[name]["f1"].append(f1(pred, gold))
                     if a.judge:
@@ -151,7 +169,7 @@ def main(argv=None):
         print(f"  {sample['sample_id']} done ({time.perf_counter() - t0:.0f}s)", file=sys.stderr)
     n = len(next(iter(res.values()))["coverage"])
     print(f"LoCoMo QA - {n} questions (conversations {a.conversations}), k={a.k}, llm={a.llm}\n")
-    metrics = ["coverage"] + (["f1"] if llm else []) + (["j"] if a.judge else [])
+    metrics = ["coverage"] + (["f1"] if (llm or reader) else []) + (["j"] if a.judge else [])
     print("| system | " + " | ".join({"coverage": "answer coverage", "f1": "F1", "j": "J (judge)"}[m] for m in metrics) + " |")
     print("|---|" + "---|" * len(metrics))
     summary = {}

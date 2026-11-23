@@ -1,0 +1,221 @@
+{
+  "llm": "extractive",
+  "k": 10,
+  "questions": 1388,
+  "summary": {
+    "recency (chat window)": {
+      "coverage": 17.40513620369376,
+      "f1": 3.108826612068687
+    },
+    "BM25": {
+      "coverage": 59.985511916559716,
+      "f1": 6.123078155030493
+    },
+    "agentmem (hybrid)": {
+      "coverage": 60.890025169259076,
+      "f1": 6.026264074683298
+    }
+  },
+  "by_category": {
+    "recency (chat window)": {
+      "temporal": 26.567739771965122,
+      "single-hop": 16.18424550788936,
+      "multi-hop": 11.435959749218014,
+      "open-domain": 15.374069055441469
+    },
+    "BM25": {
+      "temporal": 61.068913480885314,
+      "single-hop": 70.5556199605181,
+      "multi-hop": 38.32642096487797,
+      "open-domain": 23.329287720897774
+    },
+    "agentmem (hybrid)": {
+      "temporal": 61.55264922870557,
+      "single-hop": 71.56118153228476,
+      "multi-hop": 39.82039605999159,
+      "open-domain": 22.95942864565991
+    }
+  },
+  "examples": [
+    {
+      "system": "recency (chat window)",
+      "question": "When Jon has lost his job as a banker?",
+      "gold": "19 January, 2023",
+      "pred": "23 July, 2023"
+    },
+    {
+      "system": "BM25",
+      "question": "When Jon has lost his job as a banker?",
+      "gold": "19 January, 2023",
+      "pred": "my yesterday, so I'm gonna take shot at"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "When Jon has lost his job as a banker?",
+      "gold": "19 January, 2023",
+      "pred": "my yesterday, so I'm gonna take shot at"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "When Gina has lost her job at Door Dash?",
+      "gold": "January, 2023",
+      "pred": "23 July, 2023"
+    },
+    {
+      "system": "BM25",
+      "question": "When Gina has lost her job at Door Dash?",
+      "gold": "January, 2023",
+      "pred": "Unfortunately, I also my this month."
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "When Gina has lost her job at Door Dash?",
+      "gold": "January, 2023",
+      "pred": "Unfortunately, I also my this month."
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "How do Jon and Gina both like to destress?",
+      "gold": "by dancing",
+      "pred": "Thanks"
+    },
+    {
+      "system": "BM25",
+      "question": "How do Jon and Gina both like to destress?",
+      "gold": "by dancing",
+      "pred": "2023"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "How do Jon and Gina both like to destress?",
+      "gold": "by dancing",
+      "pred": "2023"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "What do Jon and Gina both have in common?",
+      "gold": "They lost their jobs and decided to start their own businesses.",
+      "pred": "Thanks"
+    },
+    {
+      "system": "BM25",
+      "question": "What do Jon and Gina both have in common?",
+      "gold": "They lost their jobs and decided to start their own businesses.",
+      "pred": "Wow"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "What do Jon and Gina both have in common?",
+      "gold": "They lost their jobs and decided to start their own businesses.",
+      "pred": "Wow"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "Why did Jon decide to start his dance studio?",
+      "gold": "He lost his job and decided to start his own business to share his passion.",
+      "pred": "Can't"
+    },
+    {
+      "system": "BM25",
+      "question": "Why did Jon decide to start his dance studio?",
+      "gold": "He lost his job and decided to start his own business to share his passion.",
+      "pred": "I'm"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "Why did Jon decide to start his dance studio?",
+      "gold": "He lost his job and decided to start his own business to share his passion.",
+      "pred": "I'm"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "What Jon thinks the ideal dance studio should look like?",
+      "gold": "By the water, with natural light and Marley flooring",
+      "pred": "Last Friday"
+    },
+    {
+      "system": "BM25",
+      "question": "What Jon thinks the ideal dance studio should look like?",
+      "gold": "By the water, with natural light and Marley flooring",
+      "pred": "Check"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "What Jon thinks the ideal dance studio should look like?",
+      "gold": "By the water, with natural light and Marley flooring",
+      "pred": "I'm"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "When is Jon's group performing at a festival?",
+      "gold": "February, 2023",
+      "pred": "Last Friday dance class with of friends I"
+    },
+    {
+      "system": "BM25",
+      "question": "When is Jon's group performing at a festival?",
+      "gold": "February, 2023",
+      "pred": "20 January, 2023"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "When is Jon's group performing at a festival?",
+      "gold": "February, 2023",
+      "pred": "20 January, 2023"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "When did Gina launch an ad campaign for her store?",
+      "gold": "29 January, 2023",
+      "pred": "23 July, 2023"
+    },
+    {
+      "system": "BM25",
+      "question": "When did Gina launch an ad campaign for her store?",
+      "gold": "29 January, 2023",
+      "pred": "I just launched my clothing in hopes of"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "When did Gina launch an ad campaign for her store?",
+      "gold": "29 January, 2023",
+      "pred": "I just launched my clothing in hopes of"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "When was Jon in Paris?",
+      "gold": "28 January 2023",
+      "pred": "23 July, 2023"
+    },
+    {
+      "system": "BM25",
+      "question": "When was Jon in Paris?",
+      "gold": "28 January 2023",
+      "pred": "Paris?!"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "When was Jon in Paris?",
+      "gold": "28 January 2023",
+      "pred": "Paris?!"
+    },
+    {
+      "system": "recency (chat window)",
+      "question": "Which city have both Jean and John visited?",
+      "gold": "Rome",
+      "pred": "unknown"
+    },
+    {
+      "system": "BM25",
+      "question": "Which city have both Jean and John visited?",
+      "gold": "Rome",
+      "pred": "Never"
+    },
+    {
+      "system": "agentmem (hybrid)",
+      "question": "Which city have both Jean and John visited?",
+      "gold": "Rome",
+      "pred": "Never"
+    }
+  ]
+}
