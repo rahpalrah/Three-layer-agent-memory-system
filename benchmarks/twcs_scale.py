@@ -29,6 +29,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", default=str(T.DATA))
     ap.add_argument("--queries", type=int, default=3000)
+    ap.add_argument("--embedder", default="hashing", choices=["hashing", "minilm"])
+    ap.add_argument("--max-customers", type=int, help="first N customers only (for model-based runs)")
     ap.add_argument("--db", default=str(HERE / "data" / "twcs" / "scale.db"))
     ap.add_argument("--out", default=str(HERE / "results" / "twcs_scale.json"))
     a = ap.parse_args(argv)
@@ -41,12 +43,20 @@ def main(argv=None):
     print(f"loaded in {load_s:.0f}s: {sum(map(len, inbound.values())):,} customer messages, "
           f"{len(reply_of):,} company replies, {len(probes):,} returning customers", file=sys.stderr, flush=True)
 
+    if a.max_customers:
+        keep = list(inbound)[: a.max_customers]
+        inbound = {k: inbound[k] for k in keep}
+        probes = [p for p in probes if p["cid"] in inbound]
+    if a.embedder == "minilm":
+        from longmemeval import CachedEmbedder
+        import locomo as L
+        emb_model = CachedEmbedder(L.make_embedder("minilm"), HERE / "data" / "twcs" / "minilm_cache")
     db = Path(a.db)
     db.parent.mkdir(parents=True, exist_ok=True)
     if db.exists():
         db.unlink()
     st = SQLiteStorage(db)
-    emb = HashingEmbedder()
+    emb = HashingEmbedder() if a.embedder == "hashing" else emb_model
     scorer = HeuristicImportanceScorer()
     t = time.perf_counter()
     stored = 0
@@ -62,11 +72,13 @@ def main(argv=None):
         eps.sort()
         # written directly so each item keeps its real tweet timestamp (remember_many would stamp
         # the whole batch with one time)
+        vecs = emb.embed_many([e[1] for e in eps]) if hasattr(emb, "embed_many") else \
+            [emb.embed(e[1]) for e in eps]
         st.put_many([MemoryItem(content=text, layer=Layer.EPISODIC, namespace=cid,
-                                importance=scorer.score(text, role=role), embedding=emb.embed(text),
+                                importance=scorer.score(text, role=role), embedding=v,
                                 created_at=ts, last_accessed=ts,
                                 metadata={"tid": tid, "parent": parent, "role": role})
-                     for ts, text, role, tid, parent in eps])
+                     for (ts, text, role, tid, parent), v in zip(eps, vecs)])
         stored += len(eps)
         if n % 100000 == 0:
             print(f"  {n:,} customers, {stored:,} messages ({stored / (time.perf_counter() - t):,.0f}/s)",
@@ -102,9 +114,14 @@ def main(argv=None):
         "hits_from_own_namespace": 100 * same_tenant / max(1, n_hits),
         "query_ms_p50": round(lat[len(lat) // 2], 2), "query_ms_p95": round(lat[int(0.95 * (len(lat) - 1))], 2),
     }
+    import resource
+    result["embedder"] = a.embedder
+    result["peak_harness_rss_gb"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6, 2)
     st.close()
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    if a.embedder == "minilm":
+        emb_model.save()
     out.write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))
     print(f"wrote {out}")

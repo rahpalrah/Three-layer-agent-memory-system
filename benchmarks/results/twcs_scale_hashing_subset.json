@@ -1,0 +1,17 @@
+{
+  "tweets_ingested": 648353,
+  "customers": 120000,
+  "returning_customers": 1980,
+  "load_seconds": 55.1,
+  "ingest_seconds": 164.4,
+  "ingest_per_second": 3943,
+  "database_mb": 2720.2,
+  "queries": 1000,
+  "evidence_recall_at_10": 96.7136097863882,
+  "any_at_10": 99.7,
+  "hits_from_own_namespace": 100.0,
+  "query_ms_p50": 1.51,
+  "query_ms_p95": 4.99,
+  "embedder": "hashing",
+  "peak_harness_rss_gb": 1.68
+}

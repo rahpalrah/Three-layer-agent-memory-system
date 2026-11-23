@@ -1,0 +1,175 @@
+{
+  "embedder": "minilm",
+  "rerank": true,
+  "min_messages": 15,
+  "probes_available": 463,
+  "tracks": {
+    "full query": {
+      "customers": 463,
+      "summary": {
+        "recency window": {
+          "5": {
+            "evidence_recall": 38.96453986372213,
+            "any": 65.2267818574514
+          },
+          "10": {
+            "evidence_recall": 53.18494334223685,
+            "any": 77.5377969762419
+          }
+        },
+        "BM25": {
+          "5": {
+            "evidence_recall": 74.07458060634191,
+            "any": 95.24838012958963
+          },
+          "10": {
+            "evidence_recall": 87.4310250165084,
+            "any": 98.70410367170626
+          }
+        },
+        "agentmem hybrid": {
+          "5": {
+            "evidence_recall": 73.8641194553424,
+            "any": 93.9524838012959
+          },
+          "10": {
+            "evidence_recall": 88.13896054772901,
+            "any": 98.70410367170626
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "evidence_recall": 74.75945914749785,
+            "any": 93.52051835853132
+          },
+          "10": {
+            "evidence_recall": 86.71669440685517,
+            "any": 97.62419006479482
+          }
+        }
+      },
+      "vs_bm25": {
+        "agentmem hybrid": {
+          "5": {
+            "diff": -0.21046115099950702,
+            "ci": [
+              -2.0470349351168085,
+              1.5718648812317109
+            ],
+            "significant": false
+          },
+          "10": {
+            "diff": 0.7079355312206194,
+            "ci": [
+              -0.4901202117568959,
+              1.8674595710564224
+            ],
+            "significant": false
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "diff": 0.6848785411559446,
+            "ci": [
+              -1.401330850574911,
+              2.6945264958223927
+            ],
+            "significant": false
+          },
+          "10": {
+            "diff": -0.714330609653232,
+            "ci": [
+              -2.522907087859516,
+              0.9667916583187123
+            ],
+            "significant": false
+          }
+        }
+      }
+    },
+    "distinctive words masked": {
+      "customers": 463,
+      "summary": {
+        "recency window": {
+          "5": {
+            "evidence_recall": 38.96453986372213,
+            "any": 65.2267818574514
+          },
+          "10": {
+            "evidence_recall": 53.18494334223685,
+            "any": 77.5377969762419
+          }
+        },
+        "BM25": {
+          "5": {
+            "evidence_recall": 50.36825655016597,
+            "any": 76.88984881209502
+          },
+          "10": {
+            "evidence_recall": 69.2667184615991,
+            "any": 89.41684665226782
+          }
+        },
+        "agentmem hybrid": {
+          "5": {
+            "evidence_recall": 51.03128454728901,
+            "any": 77.32181425485962
+          },
+          "10": {
+            "evidence_recall": 70.35183589068329,
+            "any": 88.98488120950324
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "evidence_recall": 51.38851657759142,
+            "any": 77.10583153347731
+          },
+          "10": {
+            "evidence_recall": 69.88947260212926,
+            "any": 88.55291576673866
+          }
+        }
+      },
+      "vs_bm25": {
+        "agentmem hybrid": {
+          "5": {
+            "diff": 0.6630279971230486,
+            "ci": [
+              -1.531805538000832,
+              3.016803091408565
+            ],
+            "significant": false
+          },
+          "10": {
+            "diff": 1.085117429084193,
+            "ci": [
+              -1.1129522024515934,
+              3.182748102143362
+            ],
+            "significant": false
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "diff": 1.0202600274254439,
+            "ci": [
+              -1.5300067178521357,
+              3.640896861572566
+            ],
+            "significant": false
+          },
+          "10": {
+            "diff": 0.6227541405301575,
+            "ci": [
+              -2.116168444387427,
+              3.115391553478186
+            ],
+            "significant": false
+          }
+        }
+      }
+    }
+  },
+  "peak_harness_rss_gb": 3.6
+}

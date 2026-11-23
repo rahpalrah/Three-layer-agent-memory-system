@@ -177,6 +177,12 @@ mkdir -p benchmarks/data/longmemeval && cd benchmarks/data/longmemeval
 curl -L -O https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json   # 277 MB
 ```
 
+## Licences and dataset restrictions
+
+The code is MIT-licensed (`LICENSE`). Benchmark datasets are **not** included and carry their own licences; see [`NOTICE.md`](NOTICE.md).
+
+**Customer Support on Twitter** (Kaggle) is licensed **CC BY-NC-SA 4.0: non-commercial use only**. Any results you build from it inherit that restriction. The repository publishes only aggregate statistics, never tweet text.
+
 ## Testing
 
 ```bash

@@ -250,9 +250,49 @@ Latency per query (two queries per customer, with reranker): p50 340 ms / 295 ms
 | Hits that came from the customer's own namespace | 100% |
 | Query latency across tenants, p50 / p95 | 1.3 ms / 3.1 ms |
 
-### 10d. Limits
-- **Evidence is lexical.** Word overlap defines what should be found, so keyword methods start with an advantage. The masked track reduces this but does not remove it. Real answer labels would need annotation or an LLM judge.
-- **Per-customer tests saturate.** Typical histories are small, so the 10a differences are small. The brand inbox (10b) is the harder test.
-- **The scale run used the HashingEmbedder.** Model quality at scale was measured in 10a and 10b only.
-- **Memory.** A 310k-message namespace stored as Python objects exceeded 15 GB and was killed. Brand runs now use SQLite, which stores embeddings as compact float32 blobs.
-- **Licence.** CC BY-NC-SA 4.0 is non-commercial. Results built on this dataset should carry that restriction.
+### 10d. Limits, and how each was addressed
+
+**1. Evidence is word-based.** The lexical evidence favours keyword search. *Addressed with a judged set:* 30 long-history customers (every one with at least 15 messages), queries with their distinctive words removed. For each query, the top 10 of each system were pooled (443 messages) and judged for relevance. A message counts as relevant if it concerns the same issue, order, account, product or conversation as the new message, and the judgement uses the message and its company reply, not word overlap. **The judge was a single language model, not a human panel**; the labels are in `benchmarks/results/twcs_judgments.json`, and the 28 queries with a relevant message are a small sample. The pool is drawn only from the four compared systems, so these figures are only comparable with each other.
+
+| system | precision@10 | judged recall@10 |
+|---|---|---|
+| recency window | 83.2% | 76.2% |
+| BM25 | 82.9% | 78.2% |
+| agentmem hybrid | 82.5% | 77.3% |
+| agentmem hybrid + reranker | 82.1% | 77.1% |
+
+With keywords removed and judged by relevance rather than overlap, **no system is significantly better than another** on these 28 queries. The keyword bias does not decide the outcome here. Long ongoing threads make most of each history relevant, which generously favours any method that returns recent messages (the chat window does well on this set for that reason).
+
+**2. Most histories are short.** *Addressed with a long-history track:* returning customers with at least 15 messages (463 eligible; 1,000 sampled max, all 463 used). The per-customer test is no longer saturated:
+
+| track (463 customers, MiniLM + reranker) | recency window | BM25 | agentmem hybrid | agentmem + reranker |
+|---|---|---|---|---|
+| full query, evidence recall@10 | 53.2% | 87.4% | 88.1% (+0.7 n.s.) | 86.7% (−0.7 n.s.) |
+| distinctive words masked, evidence recall@10 | 53.2% | 69.3% | 70.4% (+1.1 n.s.) | 69.9% (+0.6 n.s.) |
+
+On long histories the chat window falls clearly behind, while agentmem and BM25 are statistically tied. The shared-inbox test (10b) remains the harder test of retrieval among many customers.
+
+**3. The full-corpus run used the hashing embedder.** *Addressed with a MiniLM run on the same subset* (the first 120,000 tenants, 648,353 tweets, 1,000 queries):
+
+| embedder | ingest throughput | database | evidence recall@10 | any@10 | query p50 / p95 |
+|---|---|---|---|---|---|
+| HashingEmbedder | 3,943 tweets/s | 2.7 GB | 96.7% | 99.7% | — |
+| all-MiniLM-L6-v2 | 246 tweets/s | 1.4 GB | 96.0% | 99.4% | 1.0 / 3.3 ms |
+
+On this data the semantic model **does not improve recall** and it ingests 16 times more slowly. That is consistent with the lexical evidence (limit 1), so this result says little about semantic quality. Semantic quality is what the judged set is for. The full 702,669-tenant corpus was ingested with the hashing embedder only.
+
+**4. Memory.** The earlier brand run, with each message's embedding held as a Python list, needed more than 15 GB and was killed. The shared memory now stores embeddings as float32 blobs in SQLite, and the in-process index holds only the vector matrix. Measured peaks of the harness process (which holds the whole CSV as Python objects, a cost of the benchmark rather than of the memory store):
+
+| run | harness peak memory | store on disk |
+|---|---|---|
+| per-customer, 1,500 customers | — (not recorded in that run) | 43.5 MB |
+| long histories, 463 customers | 3.6 GB | in memory per customer |
+| shared inbox, AmazonHelp (310k messages), SQLite | ~7.7 GB (process size seen during the run) | not recorded separately |
+| full corpus, 702k tenants, hashing | not recorded (first run) | 11.3 GB |
+| full subset, MiniLM, 120k tenants | 3.7 GB | 1.4 GB |
+
+The memory store is no longer the constraint. The harness peak is set by loading the corpus into Python objects; streaming the CSV would reduce it, and this is left as a benchmark improvement rather than a library limit.
+
+**5. Licence.** The dataset is **CC BY-NC-SA 4.0: non-commercial use only**, with derivatives under the same licence and attribution required. Results built on it inherit that restriction. The repository stores only aggregate statistics and judgment labels (`benchmarks/results/twcs*.json`, `twcs_judgments.json`, which holds tweet IDs and 0/1 values, never tweet text). A check of every committed result file found no tweet text. `NOTICE.md` and the README state the restriction. The code remains MIT.
+
+**Data-quality findings from the judging.** Some rows marked as customer messages are brand broadcasts or automated replies, for example the PlayStation informational tweets (query 19), and some brand accounts appear as customers. Those rows slightly inflate the pools. Mass @-mention spam also appears (query 9). The benchmark does not filter these out.

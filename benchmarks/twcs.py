@@ -408,6 +408,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", default=str(DATA))
     ap.add_argument("--customers", type=int, default=1500, help="sample of probe-eligible customers")
+    ap.add_argument("--min-messages", type=int, default=0,
+                    help="only customers with at least this many messages (long-history track)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--embedder", default="minilm", choices=["minilm", "hashing"])
     ap.add_argument("--rerank", action="store_true")
@@ -419,7 +421,7 @@ def main(argv=None):
     t0 = time.perf_counter()
     inbound, reply_of = load(Path(a.data))
     df = token_df(inbound)
-    probes_all = build_probes(inbound, df)
+    probes_all = [p for p in build_probes(inbound, df) if len(inbound[p["cid"]]) >= a.min_messages]
     rng = random.Random(a.seed)
     probes = rng.sample(probes_all, min(a.customers, len(probes_all)))
     print(f"loaded {sum(map(len, inbound.values())):,} customer messages from {len(inbound):,} authors; "
@@ -462,8 +464,8 @@ def main(argv=None):
         if tokenize(q):
             masked.append(dict(p, query=q))
     tracks = {"full query": probes, "distinctive words masked": masked}
-    result = {"embedder": a.embedder, "rerank": a.rerank, "probes_available": len(probes_all),
-              "tracks": {}}
+    result = {"embedder": a.embedder, "rerank": a.rerank, "min_messages": a.min_messages,
+              "probes_available": len(probes_all), "tracks": {}}
     summaries = {}
     for track, tp in tracks.items():
         per = run_quality(tp, inbound, reply_of, embedder, reranker)
@@ -503,6 +505,10 @@ def main(argv=None):
                   f"- identical results after closing and reopening the database: {e['reopen_identical_results']:.1f}%",
                   f"- query latency p50 {e['query_ms_p50']} ms, p95 {e['query_ms_p95']} ms; "
                   f"database {e['db_mb']} MB; ingest {e['ingest_seconds']}s"]
+    import resource
+    peak_gb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6  # Linux: kilobytes
+    result["peak_harness_rss_gb"] = round(peak_gb, 2)
+    lines.append(f"\npeak memory of the harness process (corpus held in Python): {peak_gb:.1f} GB")
     text = "\n".join(lines)
     print(text)
     out = Path(a.out)

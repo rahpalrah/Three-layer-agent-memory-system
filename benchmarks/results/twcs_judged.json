@@ -1,0 +1,25 @@
+{
+  "queries": 28,
+  "systems": {
+    "recency window": {
+      "precision@10": 83.21428571428572,
+      "judged_recall@10": 76.23010549453495,
+      "queries": 28
+    },
+    "BM25": {
+      "precision@10": 82.85714285714286,
+      "judged_recall@10": 78.22578838307498,
+      "queries": 28
+    },
+    "agentmem hybrid": {
+      "precision@10": 82.5,
+      "judged_recall@10": 77.27035492764152,
+      "queries": 28
+    },
+    "agentmem hybrid + reranker": {
+      "precision@10": 82.14285714285714,
+      "judged_recall@10": 77.11467727196387,
+      "queries": 28
+    }
+  }
+}
