@@ -196,3 +196,63 @@ The simulation has 20 customers over 8 weeks (812 turns) with direct and reworde
 - **Index lifetime:** the index lives in the process's memory and is rebuilt once per process (about 1 s per 10,000 memories). For millions of memories, or a shared index across servers, implement `StorageBackend` on a vector database (pgvector, Qdrant).
 - **Reranker cost:** it adds about 30 cross-encoder pairs per query on CPU.
 - **Fact extraction:** the rule-based extractor is pattern-based. Use `use_llm_memory=True` for open-ended conversations.
+
+## 10. Customer Support on Twitter (Kaggle): returning customers
+
+Dataset: Kaggle `thoughtvector/customer-support-on-twitter` (CC BY-NC-SA 4.0, non-commercial use only). 1.54M customer messages from 702,669 authors, and 1.17M company replies linked to them. Harness: `benchmarks/twcs.py`. Full-corpus run: `benchmarks/twcs_scale.py`.
+
+**Task.** A customer returns on a later day. Their message is the query, their earlier messages and the company's replies are the memory. Evidence is the earlier customer messages that share a distinctive word with the query (a word in at most 150 customer messages in the corpus). There are no human labels, so evidence is derived from word overlap. That favours keyword methods, which is the main caveat below.
+
+**Two tracks.** *Full query* uses the customer's own words. *Distinctive words masked* removes those keywords from the query, so retrieval must work from the rest of the message.
+
+### 10a. Per-customer memory (1,500 returning customers, 5,845 eligible)
+
+| system | recall@10, full | recall@10, masked | recall@5, masked |
+|---|---|---|---|
+| recency window (last N messages) | 92.3% | 92.3% | 79.6% |
+| BM25 | 99.1% | 96.9% | 89.7% |
+| agentmem hybrid | 99.1% | 97.1% | **90.5%** (+0.8, CI [+0.1, +1.6]) |
+| agentmem hybrid + reranker | 98.9% | 97.3% | **90.8%** (+1.2, CI [+0.4, +2.0]) |
+
+Each customer's history is small (median 4 messages), so top-10 retrieval is close to saturated. Only the chat window is clearly worse. The reranker's gain is significant at 5 results only.
+
+End-to-end lifecycle on the masked track (sessions, consolidation, SQLite, close and reopen):
+- 16,954 history messages became 16,954 episodes, 145 facts, 4,795 sessions.
+- Evidence recall@10 97.3%. The evidence text appeared in the prompt context for 92.8% of queries.
+- Results were identical after closing and reopening the database (100%).
+- Query latency p50 46 ms, p95 193 ms (includes the reranker). Database 43.5 MB.
+
+### 10b. One brand's inbox in one shared memory (AmazonHelp, 309,698 messages)
+
+Every message to one brand goes into a single namespace. Each customer is tagged with their own id. Each query uses the tag filter (this customer only) or no filter (whole inbox). This tests customer isolation and retrieval among thousands of other customers' messages.
+
+| track | tag-isolated recall@10 | untagged recall@10 | untagged top-10 hits from other customers |
+|---|---|---|---|
+| full query (214 customers) | **99.5%** | 35.2% | 93.9% |
+| distinctive words masked (223 customers) | **96.5%** | 12.2% | 97.3% |
+
+Latency per query (two queries per customer, with reranker): p50 340 ms / 295 ms, p95 715 ms / 614 ms (full / masked).
+
+**Bug found and fixed by this run.** The tag filter was applied after the index had already chosen its top 200 candidates. If other customers' messages outranked the target, the target was dropped. Isolated recall was 72% (full) and 31% (masked) before the fix. The index now applies the filter before the cut, and a regression test covers it.
+
+**Second fix.** Adding a message scanned and copied the whole namespace to check novelty, so ingestion slowed quadratically. Writes now use a bounded cache of recent episodes. 20,000 writes take about 27 seconds.
+
+### 10c. Full corpus: 2.70M tweets, 702,669 tenants (one SQLite file)
+
+`python benchmarks/twcs_scale.py`, HashingEmbedder (so the run measures storage and index, not the model).
+
+| measure | result |
+|---|---|
+| Tweets ingested (customer messages and linked replies) | 2,702,208 |
+| Ingest throughput | 4,090 tweets/s (661 s total) |
+| Database size | 11.3 GB |
+| Evidence recall@10, 3,000 returning customers | 98.4% (any@10 99.5%) |
+| Hits that came from the customer's own namespace | 100% |
+| Query latency across tenants, p50 / p95 | 1.3 ms / 3.1 ms |
+
+### 10d. Limits
+- **Evidence is lexical.** Word overlap defines what should be found, so keyword methods start with an advantage. The masked track reduces this but does not remove it. Real answer labels would need annotation or an LLM judge.
+- **Per-customer tests saturate.** Typical histories are small, so the 10a differences are small. The brand inbox (10b) is the harder test.
+- **The scale run used the HashingEmbedder.** Model quality at scale was measured in 10a and 10b only.
+- **Memory.** A 310k-message namespace stored as Python objects exceeded 15 GB and was killed. Brand runs now use SQLite, which stores embeddings as compact float32 blobs.
+- **Licence.** CC BY-NC-SA 4.0 is non-commercial. Results built on this dataset should carry that restriction.

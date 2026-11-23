@@ -162,7 +162,7 @@ class AgentMemory:
         """
         if not self.current_session:
             self.start_session()
-        recent = self.episodic.recent(20) + self.working.items()
+        recent = self.episodic.recent_context(20) + self.working.items()
         imp = importance if importance is not None else self.scorer.score(content, role=role, context=recent)
         meta = dict(metadata or {}, role=role)
         now = self.clock()
@@ -237,7 +237,7 @@ class AgentMemory:
         if stored and self.index is not None and qv is not None and any(qv):
             # two-stage: index proposes candidates, full ranker scores only those
             self.storage.ensure_fresh()
-            pre = self.index.candidates(qv, query, n=max(self.candidates, k), layers=stored)
+            pre = self.index.candidates(qv, query, n=max(self.candidates, k), layers=stored, tags=tags)
             items = [i for i in self.storage.get_many(list(pre)) if "superseded_by" not in i.metadata]
         else:
             if Layer.SEMANTIC in layers:

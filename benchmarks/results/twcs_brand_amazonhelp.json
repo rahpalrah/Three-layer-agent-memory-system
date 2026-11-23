@@ -1,0 +1,54 @@
+{
+  "embedder": "minilm",
+  "rerank": true,
+  "runs": {
+    "full query": {
+      "brand": "AmazonHelp",
+      "customers": 214,
+      "stored_messages": 309698,
+      "ingest_seconds": 2166.4,
+      "masked": false,
+      "systems": {
+        "tag-isolated (this customer only)": {
+          "evidence_recall@5": 96.322318647085,
+          "evidence_recall@10": 99.51602136181576,
+          "any@5": 98.13084112149532,
+          "any@10": 100.0
+        },
+        "untagged (whole inbox)": {
+          "evidence_recall@5": 29.174454828660433,
+          "evidence_recall@10": 35.17578994214508,
+          "any@5": 36.44859813084112,
+          "any@10": 42.523364485981304
+        }
+      },
+      "foreign_hits_untagged_at10": 93.87850467289721,
+      "query_ms_p50": 339.6,
+      "query_ms_p95": 715.2
+    },
+    "distinctive words masked": {
+      "brand": "AmazonHelp",
+      "customers": 223,
+      "stored_messages": 309694,
+      "ingest_seconds": 550.9,
+      "masked": true,
+      "systems": {
+        "tag-isolated (this customer only)": {
+          "evidence_recall@5": 86.48462524023061,
+          "evidence_recall@10": 96.49565805395402,
+          "any@5": 90.13452914798206,
+          "any@10": 98.20627802690582
+        },
+        "untagged (whole inbox)": {
+          "evidence_recall@5": 9.990034877927254,
+          "evidence_recall@10": 12.232187344294967,
+          "any@5": 13.452914798206278,
+          "any@10": 15.695067264573993
+        }
+      },
+      "foreign_hits_untagged_at10": 97.26457399103138,
+      "query_ms_p50": 294.8,
+      "query_ms_p95": 613.5
+    }
+  }
+}

@@ -60,3 +60,18 @@ def test_superseded_and_layer_filter_respected(tmp_path):
     facts = [h.item.content for h in m.recall("roast coffee", k=5, layers=[Layer.SEMANTIC])]
     assert "The user likes dark roast coffee." not in facts
     assert all(h.item.layer == Layer.SEMANTIC for h in m.recall("roast", layers=[Layer.SEMANTIC]))
+
+
+def test_tag_filter_applies_before_the_candidate_cut(tmp_path):
+    """Regression: a tag filter applied after the index's top-N cut lost the tagged item when
+    3,000 other customers' messages outranked it."""
+    import random
+    rng = random.Random(0)
+    vocab = "refund order screen delivery broken late damaged package replace phone cracked update".split()
+    m = AgentMemory(auto_consolidate=False)
+    for i in range(3000):
+        m.remember(" ".join(rng.choices(vocab, k=8)) + f" ticket {i}", importance=0.5, tags=[f"other{i % 300}"])
+    target = m.remember("my cracked phone screen never got replaced", importance=0.5, tags=["me"])
+    hits = m.recall("cracked screen replacement", k=10, tags=["me"], reinforce=False)
+    assert [h.item.id for h in hits] == [target.id]
+    assert m.recall("cracked screen replacement", k=10, tags=["nobody"], reinforce=False) == []

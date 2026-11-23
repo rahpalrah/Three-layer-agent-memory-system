@@ -6,7 +6,8 @@ so the agent can recall *when* and *in which conversation* something occurred.
 from __future__ import annotations
 
 import time
-from typing import Callable, List, Optional
+from collections import deque
+from typing import Callable, Deque, List, Optional
 
 from .embeddings import Embedder
 from .scoring import RetrievalWeights, rank, retention_score
@@ -19,6 +20,7 @@ class EpisodicMemory:
                  weights: Optional[RetrievalWeights] = None,
                  clock: Callable[[], float] = time.time) -> None:
         self.clock = clock
+        self._recent: Deque[MemoryItem] = deque(maxlen=64)
         self.storage = storage
         self.embedder = embedder
         self.namespace = namespace
@@ -30,7 +32,14 @@ class EpisodicMemory:
         if item.embedding is None:
             item.embedding = self.embedder.embed(item.content)
         self.storage.put(item)
+        self._recent.append(item)
         return item
+
+    def recent_context(self, n: int = 20) -> List[MemoryItem]:
+        """The last few episodes recorded in this process, newest first. Used for the novelty
+        check on every write; cheap regardless of how large the store is. (Entries may since
+        have been forgotten, which only makes the novelty estimate slightly stale.)"""
+        return list(self._recent)[-n:][::-1]
 
     def retrieve(self, query: Optional[str] = None, k: int = 5, session_id: Optional[str] = None,
                  tags: Optional[List[str]] = None, since: Optional[float] = None,

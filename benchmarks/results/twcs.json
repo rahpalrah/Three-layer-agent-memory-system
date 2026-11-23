@@ -1,0 +1,189 @@
+{
+  "embedder": "minilm",
+  "rerank": true,
+  "probes_available": 5845,
+  "tracks": {
+    "full query": {
+      "customers": 1500,
+      "summary": {
+        "recency window": {
+          "5": {
+            "evidence_recall": 79.62689300544325,
+            "any": 87.4
+          },
+          "10": {
+            "evidence_recall": 92.3311313378134,
+            "any": 96.39999999999999
+          }
+        },
+        "BM25": {
+          "5": {
+            "evidence_recall": 96.38207030200289,
+            "any": 99.2
+          },
+          "10": {
+            "evidence_recall": 99.09744624839301,
+            "any": 100.0
+          }
+        },
+        "agentmem hybrid": {
+          "5": {
+            "evidence_recall": 96.42298144423756,
+            "any": 99.2
+          },
+          "10": {
+            "evidence_recall": 99.0541192691315,
+            "any": 100.0
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "evidence_recall": 96.11233805712358,
+            "any": 98.86666666666667
+          },
+          "10": {
+            "evidence_recall": 98.89013892485704,
+            "any": 99.86666666666667
+          }
+        }
+      },
+      "vs_bm25": {
+        "agentmem hybrid": {
+          "5": {
+            "diff": 0.04091114223467164,
+            "ci": [
+              -0.4241433239962652,
+              0.49788204170557115
+            ],
+            "significant": false
+          },
+          "10": {
+            "diff": -0.043326979261514374,
+            "ci": [
+              -0.20549066524872978,
+              0.10913082437275985
+            ],
+            "significant": false
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "diff": -0.26973224487930375,
+            "ci": [
+              -0.8415852067322656,
+              0.26886974136974134
+            ],
+            "significant": false
+          },
+          "10": {
+            "diff": -0.20730732353597628,
+            "ci": [
+              -0.4729347026927673,
+              0.01778609734492087
+            ],
+            "significant": false
+          }
+        }
+      }
+    },
+    "distinctive words masked": {
+      "customers": 1500,
+      "summary": {
+        "recency window": {
+          "5": {
+            "evidence_recall": 79.62689300544325,
+            "any": 87.4
+          },
+          "10": {
+            "evidence_recall": 92.3311313378134,
+            "any": 96.39999999999999
+          }
+        },
+        "BM25": {
+          "5": {
+            "evidence_recall": 89.65062173967198,
+            "any": 94.8
+          },
+          "10": {
+            "evidence_recall": 96.89622147643296,
+            "any": 99.0
+          }
+        },
+        "agentmem hybrid": {
+          "5": {
+            "evidence_recall": 90.5003206192238,
+            "any": 95.46666666666667
+          },
+          "10": {
+            "evidence_recall": 97.05924468837456,
+            "any": 99.0
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "evidence_recall": 90.84761813652132,
+            "any": 95.66666666666667
+          },
+          "10": {
+            "evidence_recall": 97.27165209578197,
+            "any": 99.0
+          }
+        }
+      },
+      "vs_bm25": {
+        "agentmem hybrid": {
+          "5": {
+            "diff": 0.8496988795518208,
+            "ci": [
+              0.06320417055711174,
+              1.6449929971988797
+            ],
+            "significant": true
+          },
+          "10": {
+            "diff": 0.163023211941618,
+            "ci": [
+              -0.3951354376876199,
+              0.7127461620535624
+            ],
+            "significant": false
+          }
+        },
+        "agentmem hybrid + reranker": {
+          "5": {
+            "diff": 1.1969963968493382,
+            "ci": [
+              0.37371286121286124,
+              2.0072965596495007
+            ],
+            "significant": true
+          },
+          "10": {
+            "diff": 0.3754306193490254,
+            "ci": [
+              -0.19357563162117242,
+              0.9617226890756303
+            ],
+            "significant": false
+          }
+        }
+      }
+    }
+  },
+  "end_to_end": {
+    "customers": 1500,
+    "ingest_seconds": 119.2,
+    "history_messages": 16954,
+    "episodes_kept": 16954,
+    "facts_learned": 145,
+    "sessions": 4795,
+    "evidence_recall_at_10": 97.3049854291153,
+    "any_at_10": 99.0,
+    "evidence_in_prompt_context": 92.80000000000001,
+    "avg_context_chars": 620,
+    "reopen_identical_results": 100.0,
+    "query_ms_p50": 46.0,
+    "query_ms_p95": 192.7,
+    "db_mb": 43.5
+  }
+}

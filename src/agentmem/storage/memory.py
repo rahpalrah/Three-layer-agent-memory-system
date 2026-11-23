@@ -40,12 +40,14 @@ class InMemoryStorage(StorageBackend):
 
     def list(self, namespace, layer=None, session_id=None, limit=None) -> List[MemoryItem]:
         with self._lock:
-            out = [_clone(i) for i in self._items.values()
-                   if i.namespace == namespace
-                   and (layer is None or i.layer == layer)
-                   and (session_id is None or i.session_id == session_id)]
-        out.sort(key=lambda i: i.created_at, reverse=True)
-        return out[:limit] if limit else out
+            refs = [i for i in self._items.values()
+                    if i.namespace == namespace
+                    and (layer is None or i.layer == layer)
+                    and (session_id is None or i.session_id == session_id)]
+            refs.sort(key=lambda i: i.created_at, reverse=True)
+            if limit:
+                refs = refs[:limit]
+            return [_clone(i) for i in refs]  # copy only what is returned
 
     def put_many(self, items) -> None:
         with self._lock:

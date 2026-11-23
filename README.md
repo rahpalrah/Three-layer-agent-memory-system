@@ -180,13 +180,16 @@ curl -L -O https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolv
 ## Testing
 
 ```bash
-pip install -e ".[dev]" && pytest               # 33 unit tests
+pip install -e ".[dev]" && pytest               # 40 unit tests
 python tests/e2e/run_e2e.py                     # 18 end-to-end system scenarios
 python examples/support_desk.py                 # business use-case scorecard
 python benchmarks/tune.py [--rerank]            # tune retrieval / reranker on the LoCoMo dev split
 python benchmarks/longmemeval.py --rerank       # LongMemEval retrieval (download the dataset first, see below)
 python benchmarks/longmemeval_qa.py --llm llamacpp:model.gguf --judge   # LongMemEval answer accuracy
 python benchmarks/scale.py                      # latency at 1k-100k memories
+python benchmarks/twcs.py [--e2e]               # Customer Support on Twitter: returning customers (Kaggle, see RESULTS.md section 10)
+python benchmarks/twcs.py --brand AmazonHelp    # one brand inbox in one shared memory, tag isolation
+python benchmarks/twcs_scale.py                 # all 2.7M tweets, 702k tenants, one SQLite file
 python benchmarks/locomo_qa.py --llm ollama:llama3.2 --judge   # answer accuracy (F1, LLM judge)
 python benchmarks/locomo.py --conversations 2-10 --embedders hashing minilm   # held-out test
 ```

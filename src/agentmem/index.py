@@ -120,6 +120,8 @@ class MemoryIndex:
         self.postings: Dict[str, Dict[int, int]] = defaultdict(dict)
         self.doc_len: List[int] = []
         self.doc_terms: List[tuple] = []
+        self.slot_tags: List[frozenset] = []
+        self.tag_slots: Dict[str, set] = defaultdict(set)
         self.total_len = 0
         self.n_alive = 0
         self.synced_token = None
@@ -169,6 +171,7 @@ class MemoryIndex:
         while len(self.ids) <= slot:
             self.ids.append(None); self.layer.append(None); self.content_hash.append(0); self.doc_len.append(0)
             self.doc_terms.append(())
+            self.slot_tags.append(frozenset())
         self.ids[slot], self.layer[slot], self.content_hash[slot] = it.id, it.layer, hash(it.content)
         toks = tokenize(it.content)
         for w in toks:
@@ -176,6 +179,9 @@ class MemoryIndex:
             p[slot] = p.get(slot, 0) + 1
         self.doc_len[slot] = len(toks)
         self.doc_terms[slot] = tuple(set(toks))
+        self.slot_tags[slot] = frozenset(it.tags)
+        for t in it.tags:
+            self.tag_slots[t].add(slot)
         self.total_len += len(toks)
         self.n_alive += 1
         self.slot_of[it.id] = slot
@@ -194,6 +200,9 @@ class MemoryIndex:
                     if not p:
                         del self.postings[w]
             self.doc_terms[slot] = ()
+            for t in self.slot_tags[slot]:
+                self.tag_slots[t].discard(slot)
+            self.slot_tags[slot] = frozenset()
             self.total_len -= self.doc_len[slot]
             self.doc_len[slot] = 0
             self.ids[slot] = None
@@ -215,15 +224,30 @@ class MemoryIndex:
         return out
 
     def candidates(self, query_vec, query_text: Optional[str], n: int = 200,
-                   layers: Sequence[Layer] = INDEXED_LAYERS):
-        """Returns {item_id: (dense_sim, bm25)} for the union of vector and keyword top-n."""
+                   layers: Sequence[Layer] = INDEXED_LAYERS, tags: Optional[Sequence[str]] = None):
+        """Returns {item_id: (dense_sim, bm25)} for the union of vector and keyword top-n.
+
+        ``tags`` restricts candidates *before* the top-n cut. Filtering after the cut loses
+        the tagged items whenever other items outrank them (the bug this guards against)."""
         with self.lock:
             want = set(layers)
+            allowed = None
+            if tags:
+                allowed = set().union(*(self.tag_slots.get(t, set()) for t in tags))
+                if not allowed:
+                    return {}
             dense: Dict[int, float] = {}
             if self.vec is not None and query_vec is not None and any(query_vec):
-                slots, sims = self.vec.search(query_vec, n * 2 if len(want) < 2 else n)
-                dense = {s: v for s, v in zip(slots, sims) if self.layer[s] in want}
+                if allowed is None:
+                    slots, sims = self.vec.search(query_vec, n * 2 if len(want) < 2 else n)
+                    dense = {s: v for s, v in zip(slots, sims) if self.layer[s] in want}
+                else:
+                    pool = [s for s in allowed if self.layer[s] in want]
+                    sims = self.vec.sims(query_vec, pool)
+                    dense = dict(sorted(zip(pool, sims), key=lambda t: t[1], reverse=True)[: n * 2])
             lex = self.bm25(query_text) if query_text else {}
+            if allowed is not None:
+                lex = {s: v for s, v in lex.items() if s in allowed}
             lex_top = sorted(((v, s) for s, v in lex.items() if self.layer[s] in want), reverse=True)[:n]
             slots = set(dense) | {s for _, s in lex_top}
             missing = [s for s in slots if s not in dense]
