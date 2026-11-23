@@ -11,6 +11,7 @@ from .episodic import EpisodicMemory
 from .memory import AgentMemory
 from .scoring import (CallableImportanceScorer, HeuristicImportanceScorer, ImportanceScorer,
                       RetrievalWeights)
+from .selfembed import SelfEmbedder
 from .semantic import SemanticMemory
 from .storage import InMemoryStorage, SQLiteStorage, StorageBackend
 from .types import Layer, MemoryItem, ScoredMemory, Session
@@ -21,7 +22,7 @@ __all__ = [
     "AgentMemory", "WorkingMemory", "EpisodicMemory", "SemanticMemory",
     "MemoryItem", "ScoredMemory", "Session", "Layer",
     "StorageBackend", "InMemoryStorage", "SQLiteStorage",
-    "Embedder", "HashingEmbedder", "CallableEmbedder", "cosine",
+    "Embedder", "HashingEmbedder", "CallableEmbedder", "SelfEmbedder", "cosine",
     "ImportanceScorer", "HeuristicImportanceScorer", "CallableImportanceScorer", "RetrievalWeights",
     "FactExtractor", "RuleBasedExtractor", "CallableExtractor", "Fact", "ConsolidationReport",
 ]

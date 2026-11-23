@@ -115,6 +115,8 @@ def make_embedder(name):
     if name == "minilm":
         from agentmem.integrations.onnx import MiniLMEmbedder
         return MiniLMEmbedder()
+    if name == "self":
+        return None  # fitted per conversation on that conversation's own text (see run())
     if name == "openai":
         from agentmem.integrations.openai import OpenAIEmbedder
         return OpenAIEmbedder()
@@ -207,6 +209,9 @@ def run(data, ks, embedders=("hashing",), include_adversarial=False, seed=0, rer
             "BM25": lambda q, k: [ids[i] for i in bm25.top(q, k)],
         }
         for name, emb in embs.items():
+            if name == "self":
+                from agentmem.selfembed import SelfEmbedder
+                emb = SelfEmbedder(dim=256).fit(turn_text(t) for t in turns)
             mem = ingest_agentmem(sample, emb)
             if name == embedders[0]:
                 kept["turns"] += len(turns)
@@ -272,7 +277,7 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, help="only the first N conversations")
     ap.add_argument("--conversations", help="1-based subset, e.g. 2-10 (held-out test split)")
     ap.add_argument("--rerank", action="store_true", help="also evaluate the cross-encoder reranker")
-    ap.add_argument("--embedders", nargs="+", default=["hashing"], choices=["hashing", "minilm"],
+    ap.add_argument("--embedders", nargs="+", default=["hashing"], choices=["hashing", "minilm", "self"],
                     help="minilm = all-MiniLM-L6-v2 via ONNX (pip install agentmem[onnx])")
     ap.add_argument("--out", default=str(HERE / "results" / "locomo.json"))
     a = ap.parse_args(argv)
