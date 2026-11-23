@@ -115,6 +115,9 @@ def make_embedder(name):
     if name == "minilm":
         from agentmem.integrations.onnx import MiniLMEmbedder
         return MiniLMEmbedder()
+    if name == "openai":
+        from agentmem.integrations.openai import OpenAIEmbedder
+        return OpenAIEmbedder()
     raise ValueError(name)
 
 

@@ -16,6 +16,7 @@ anthropic = ["anthropic>=0.40"]
 fast = ["numpy>=1.24"]
 onnx = ["numpy>=1.24", "onnxruntime>=1.16", "tokenizers>=0.15"]
 faiss = ["numpy>=1.24", "faiss-cpu>=1.7"]
+openai = []  # standard library only; set OPENAI_API_KEY or use a proxy that injects it
 dev = ["pytest>=7"]
 
 [project.scripts]

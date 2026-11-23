@@ -66,6 +66,9 @@ def make_llm(spec: str, max_tokens: int = 400):
                 messages=[{"role": "system", "content": system}] + messages, max_tokens=max_tokens, temperature=0.0)
             return out["choices"][0]["message"]["content"]
         return complete
+    if spec.startswith("openai:"):
+        from agentmem.integrations.openai import openai_complete
+        return openai_complete(spec.split(":", 1)[1] or "gpt-4.1-mini", max_tokens=max_tokens)
     return Q.make_llm(spec)
 
 

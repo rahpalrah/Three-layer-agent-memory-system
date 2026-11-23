@@ -106,6 +106,18 @@ mem = AgentMemory("memory.db", namespace="user-42", embedder="minilm")
 
 This uses hybrid retrieval (BM25 keywords plus MiniLM vectors), with defaults tuned on a LoCoMo dev split and validated on held-out data. The model is downloaded once from a public mirror and verified by SHA-256. Set `AGENTMEM_MODEL_DIR` to choose where it is cached.
 
+## OpenAI
+
+```python
+from agentmem import AgentMemory
+from agentmem.integrations.openai import OpenAIEmbedder, OpenAIAgent
+
+mem = AgentMemory("memory.db", embedder=OpenAIEmbedder())         # text-embedding-3-small
+agent = OpenAIAgent(mem, model="gpt-4.1-mini")
+```
+
+Set `OPENAI_API_KEY`. No extra dependency is needed. Benchmarks accept `--llm openai:gpt-4.1-mini`.
+
 ## Free local LLMs (Ollama)
 
 ```python

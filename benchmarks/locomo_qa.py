@@ -77,6 +77,9 @@ def make_llm(spec: str):
         from anthropic import Anthropic
         from agentmem.integrations.anthropic import claude_complete
         return claude_complete(Anthropic(), model or "claude-sonnet-5-5", max_tokens=64)
+    if provider == "openai":
+        from agentmem.integrations.openai import openai_complete
+        return openai_complete(model or "gpt-4.1-mini", max_tokens=64)
     raise ValueError(spec)
 
 
